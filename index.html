@@ -1,0 +1,691 @@
+<title>Rendering Pergole</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: foto a tutta altezza a sinistra con i 4 punti di aggancio; pannello comandi a destra (sotto, su telefono) */
+:root{
+  --bg:#E9ECEE; --panel:#FFFFFF; --ink:#1B2126; --muted:#5B666E; --line:#D5DBDF; --soft:#F2F4F5;
+  --accent:#2B6893; --accent-ink:#FFFFFF; --stage:#20262B; --warn:#A6501E;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171B; --panel:#1A2126; --ink:#E5EAED; --muted:#96A2AA; --line:#2C363D; --soft:#222A30;
+  --accent:#6EA7D1; --accent-ink:#0D1317; --stage:#0B0F12; --warn:#E39A6B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171B; --panel:#1A2126; --ink:#E5EAED; --muted:#96A2AA; --line:#2C363D; --soft:#222A30;
+  --accent:#6EA7D1; --accent-ink:#0D1317; --stage:#0B0F12; --warn:#E39A6B; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto minmax(0,1fr);gap:12px;height:100%;max-width:1500px;margin:0 auto}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+h1{font:700 1.45rem var(--f-display);margin:0;letter-spacing:.01em;margin-right:auto}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:600 .95rem var(--f-body);
+  padding:9px 14px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:40px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn svg{width:18px;height:18px}
+#file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.stage{position:relative;background:var(--stage);border-radius:6px;overflow:hidden;min-height:0;touch-action:pan-y}
+#frame{position:absolute}
+#frame img,#frame canvas,#frame svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+#frame img{user-select:none;-webkit-user-drag:none}
+#hs{overflow:visible;pointer-events:none}
+#hs .h{pointer-events:all;cursor:grab;touch-action:none}
+.tip{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+.tip span{background:rgba(15,20,24,.78);color:#F1F4F6;font:500 .82rem var(--f-body);padding:5px 9px;border-radius:4px}
+.tip .warn{background:#8C3F12}
+.tip b{font-family:var(--f-num);font-weight:500}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:auto;min-height:0}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:12px}
+.sec:last-child{border-bottom:0}
+.sec h2{font:700 .76rem var(--f-display);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0}
+.fam{display:grid;gap:6px}
+.fam .fl{font-size:.8rem;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 .9rem var(--f-body);padding:7px 11px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.note{font-size:.84rem;color:var(--muted);margin:0;line-height:1.45}
+.row{display:grid;gap:5px}
+.row .lab{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:500}
+.num{display:inline-flex;align-items:center;gap:4px;font:500 .85rem var(--f-num);color:var(--accent)}
+.num input{width:64px;text-align:right;font:500 .9rem var(--f-num);color:var(--accent);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+select{width:100%;font:500 .95rem var(--f-body);color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:8px}
+.chk{display:flex;align-items:center;gap:9px;font-weight:500;cursor:pointer}
+.chk input{width:19px;height:19px;accent-color:var(--accent);margin:0}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:7px}
+.sw button{aspect-ratio:1;border-radius:50%;border:1px solid rgba(0,0,0,.25);cursor:pointer;padding:0;max-width:100%}
+.sw button[aria-pressed="true"]{outline:2.5px solid var(--accent);outline-offset:2px}
+.swname{font-size:.86rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 auto;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 .85rem var(--f-body);padding:7px 8px;border-radius:5px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.hint{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;line-height:1.45;color:var(--ink)}
+.hint ol{margin:0;padding-left:18px;display:grid;gap:3px}
+.warnline{color:var(--warn);font-size:.86rem;font-weight:500}
+.overlay{position:fixed;inset:0;background:rgba(8,11,13,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:30;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.overlay img{max-width:100%;max-height:72vh;border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.overlay p{color:#E8EDF0;margin:0;text-align:center;max-width:46ch}
+.overlay .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.busy{position:absolute;inset:auto 10px 10px auto;background:rgba(15,20,24,.8);color:#fff;font-size:.82rem;padding:5px 9px;border-radius:4px}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 62vh auto;height:auto}
+  .stage{min-height:320px}
+  .panel{overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header>
+    <h1>Rendering Pergole</h1>
+    <label class="btn" for="file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>Carica foto</label>
+    <input type="file" id="file" accept="image/*">
+    <button class="btn primary" id="save" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Salva immagine</button>
+  </header>
+
+  <div class="stage" id="stage">
+    <div id="frame"><img id="photo" alt="Foto del cliente"><canvas id="gl"></canvas><svg id="hs" preserveAspectRatio="none"></svg></div>
+    <div class="tip" id="tip"></div>
+  </div>
+
+  <aside class="panel" id="panel">
+    <section class="sec"><h2>Prodotto</h2><div id="prods" class="fam"></div><p class="note" id="pnote"></p></section>
+    <section class="sec"><h2>Posizione sulla foto</h2>
+      <div class="hint" id="howto"></div>
+      <div class="warnline" id="poseWarn" hidden></div>
+      <div class="seg"><button type="button" id="resetPts">Rimetti i punti al centro</button><button type="button" id="togglePts" aria-pressed="true">Punti visibili</button></div>
+    </section>
+    <section class="sec"><h2>Misure e movimento</h2><div id="ctrls" style="display:grid;gap:14px"></div></section>
+    <section class="sec"><h2>Colori</h2><div id="colors" style="display:grid;gap:10px"></div></section>
+    <section class="sec"><h2>Foto e luce</h2>
+      <div class="row"><div class="lab"><span>Obiettivo usato per la foto</span><span class="num" id="lensOut"></span></div>
+        <div class="seg" id="lensSeg"></div>
+        <input type="range" id="lens" min="12" max="80" step="1" value="26" aria-label="Focale equivalente">
+        <p class="note" id="lensNote">iPhone: 0,5× = 13 mm, 1× = 26 mm, 2× = 52 mm, 3× = 77 mm.</p></div>
+      <div class="row"><div class="lab"><span>Direzione del sole</span><span class="num" id="azOut"></span></div><input type="range" id="az" min="-180" max="180" step="5" value="-40"></div>
+      <div class="row"><div class="lab"><span>Altezza del sole</span><span class="num" id="elOut"></span></div><input type="range" id="el" min="10" max="85" step="5" value="50"></div>
+      <div class="row"><div class="lab"><span>Luminosità</span><span class="num" id="expOut"></span></div><input type="range" id="exp" min="40" max="180" step="5" value="100"></div>
+      <div class="row"><div class="lab"><span>Intensità ombre</span><span class="num" id="shOut"></span></div><input type="range" id="sh" min="0" max="90" step="5" value="45"></div>
+      <label class="chk"><input type="checkbox" id="wallSh" checked> Ombra sul muro (prodotti addossati)</label>
+    </section>
+    <section class="sec"><h2>Realtà aumentata</h2>
+      <div class="seg"><button class="btn" type="button" id="arBtn">Prepara il modello AR</button><a class="btn primary" id="arOpen" rel="ar" hidden><img alt="" width="1" height="1" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">Apri in AR</a></div>
+      <p class="note" id="arNote">Apre il prodotto in scala reale con la fotocamera dell'iPhone. Funziona quando l'app è pubblicata sul tuo sito.</p>
+    </section>
+    <section class="sec"><p class="note">Modelli indicativi ricavati dalle brochure Dirello (rev. 04.2025): sezioni di gronde, pilastri e lame sono quelle dichiarate, i dettagli sono semplificati. I colori a schermo sono approssimati: per la scelta definitiva fa fede la mazzetta.</p></section>
+  </aside>
+</div>
+
+<div class="overlay" id="ov" hidden>
+  <img id="ovImg" alt="Immagine con il prodotto inserito">
+  <p id="ovText">Tieni premuto sull'immagine e scegli "Salva in Foto", oppure usa i pulsanti.</p>
+  <div class="acts"><button class="btn primary" id="ovShare" type="button">Condividi o salva</button><button class="btn" id="ovClose" type="button">Chiudi</button></div>
+</div>
+
+<script>
+
+function gaussSolve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+ for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+  if(Math.abs(M[p][c])<1e-12)return null;[M[c],M[p]]=[M[p],M[c]];
+  for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+ return M.map((r,i)=>r[n]/r[i]);}
+function homography(src,dst){const A=[],b=[];
+ for(let i=0;i<4;i++){const[x,y]=src[i],[u,v]=dst[i];
+  A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v);}
+ const h=gaussSolve(A,b);if(!h)return null;h.push(1);return h;}
+const vnorm=v=>{const n=Math.hypot(v[0],v[1],v[2]);return[v[0]/n,v[1]/n,v[2]/n]};
+const vcross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+function poseFromH(H,f,cx,cy){const h=(r,c)=>H[r*3+c];
+ const col=c=>[(h(0,c)-cx*h(2,c))/f,(h(1,c)-cy*h(2,c))/f,h(2,c)];
+ const a1=col(0),a2=col(1),a3=col(2);let l=2/(Math.hypot(...a1)+Math.hypot(...a2));
+ if(a3[2]*l<0)l=-l;let r1=vnorm(a1.map(v=>v*l)),r2=vnorm(a2.map(v=>v*l));const t=a3.map(v=>v*l);
+ const c=vnorm(r1.map((v,i)=>v+r2[i])),d=vnorm(r1.map((v,i)=>v-r2[i]));
+ r1=c.map((v,i)=>(v+d[i])/Math.SQRT2);r2=c.map((v,i)=>(v-d[i])/Math.SQRT2);
+ return{r1,r2,r3:vcross(r1,r2),t};}
+/* mode 'ground': rect in (x,z) at y=0; 'wall': rect in (x,y) at z=0. Returns column vectors in three.js camera space */
+function solvePose(mode,W,L,pts,f,cx,cy){
+ const src=[[-W/2,0],[W/2,0],[W/2,L],[-W/2,L]];const H=homography(src,pts);if(!H)return null;
+ const P=poseFromH(H,f,cx,cy);if(!P.t.every(Number.isFinite))return null;
+ let X,Y,Z;if(mode==='ground'){X=P.r1;Y=P.r3.map(v=>-v);Z=P.r2;}else{X=P.r1;Y=P.r2;Z=P.r3;}
+ const ok=Y[1]<0;const fl=v=>[v[0],-v[1],-v[2]];
+ return{X:fl(X),Y:fl(Y),Z:fl(Z),T:fl(P.t),ok};}
+
+
+// Cataloghi colori (dalle brochure Dirello rev.001 04.2025) — tinte indicative a schermo
+const RAL = [
+  ['9010','Bianco puro','#F1ECE1'],['1013','Avorio','#E3D9C6'],['7034','Grigio giallo','#8F8B66'],
+  ['1019','Beige','#A48F7A'],['6003','Verde oliva','#50533C'],['6005','Verde muschio','#1F3A30'],
+  ['7006','Grigio beige','#6D6552'],['7039','Grigio quarzo','#6C6960'],['F235','Corten puntinato','#7A4A33'],
+  ['8014','Marrone seppia','#4A3526'],['8019','Marrone grigio','#403A3A'],['F206','Marrone cuoio','#5A3A2A'],
+  ['7035','Grigio luce','#CBD0CC'],['9006','Alluminio metallizzato','#A5A8A6'],['7001','Grigio argento','#8A9597'],
+  ['7037','Grigio polvere','#7D7F7D'],['7016','Grigio antracite','#383E42'],['F213','Grigio ferro','#4A4A48']];
+const FAB = [
+  ['503','Precontraint 622 · Bianco lucido','#F1F1EC'],['020','Precontraint 622 · Vaniglia','#EEE4C9'],
+  ['597','Precontraint 622 · Sabbia opaco','#D6C8AC'],['542','Precontraint 622 · Grigio opaco','#9C9C98'],
+  ['2171C','Soltis Proof 502 · Grigio pietra','#8F8B85'],['2167C','Soltis Proof 502 · Canna di fucile','#5B5D5F'],
+  ['2148C','Soltis Proof 502 · Cacao','#6A5446'],['2047','Soltis W96 · Antracite','#3F4245'],
+  ['819','Opatex Pro · Tortora','#8E8173'],['632','Opatex Pro · Verde','#3E5A49'],['444','Opatex Pro · Bordeaux','#6A2A33']];
+const GLASS = [['chiaro','Chiaro'],['satinato','Chiaro satinato'],['bronzo','Bronzo'],['grigio','Grigio'],['riflettente','Riflettente']];
+
+const ZIP = [
+  {k:'zipF',l:'Chiusura ZIP frontale',t:'chk',d:false},
+  {k:'zipL',l:'Chiusura ZIP lato sinistro',t:'chk',d:false},
+  {k:'zipR',l:'Chiusura ZIP lato destro',t:'chk',d:false},
+  {k:'zipDrop',l:'Discesa chiusure',t:'r',min:10,max:100,step:5,d:100,u:'%',show:p=>p.zipF||p.zipL||p.zipR}];
+const VER = {k:'ver',l:'Versione',t:'sel',o:[['AF','Addossata frontale (AF)'],['AU','Autoportante (AU)']],d:'AF'};
+const LED = {k:'led',l:'Outdoor Led System perimetrale',t:'chk',d:false};
+
+const PRODUCTS = [
+ {id:'diesisO',name:'Diesis/O',fam:'Bioclimatiche',calib:'ground',kind:'bio',
+  note:'Lame 23,5 × 5,3 cm orientabili 0–125° · gronda 20 × 27,2 · pilastri 20 × 20',
+  spec:{gw:.20,gh:.272,pw:.20,max2P:5.978,maxAng:125,retract:false},
+  ctrl:[VER,{k:'W',l:'Larghezza',t:'r',min:200,max:1000,step:5,d:450,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:200,max:997,step:5,d:400,u:'cm'},
+   {k:'Hs',l:'Altezza sotto gronda',t:'r',min:200,max:300,step:5,d:250,u:'cm'},
+   {k:'ang',l:'Apertura lame',t:'r',min:0,max:125,step:5,d:45,u:'°'},
+   {k:'dos',l:'Due settori indipendenti (DOS)',t:'chk',d:false},
+   {k:'ang2',l:'Apertura lame 2° settore',t:'r',min:0,max:125,step:5,d:0,u:'°',show:p=>p.dos},
+   ...ZIP,LED]},
+ {id:'diesisR',name:'Diesis/R',fam:'Bioclimatiche',calib:'ground',kind:'bio',
+  note:'Lame retrattili e orientabili 0–110° (AORS) · gronda 20 × 27,2 · pilastri 20 × 20',
+  spec:{gw:.20,gh:.272,pw:.20,max2P:5.978,maxAng:110,retract:true},
+  ctrl:[VER,{k:'W',l:'Larghezza',t:'r',min:200,max:1000,step:5,d:450,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:200,max:717,step:5,d:400,u:'cm'},
+   {k:'Hs',l:'Altezza sotto gronda',t:'r',min:200,max:300,step:5,d:250,u:'cm'},
+   {k:'ang',l:'Apertura lame',t:'r',min:0,max:110,step:5,d:0,u:'°'},
+   {k:'ret',l:'Lame impacchettate',t:'r',min:0,max:100,step:5,d:0,u:'%'},
+   ...ZIP,LED]},
+ {id:'bioair',name:'Bioair',fam:'Bioclimatiche',calib:'ground',kind:'bio',
+  note:'Lame 23,5 × 5,3 cm orientabili 0–125° · gronda 15 × 25 · pilastri 15 × 15',
+  spec:{gw:.15,gh:.25,pw:.15,max2P:5.091,maxAng:125,retract:false},
+  ctrl:[VER,{k:'W',l:'Larghezza',t:'r',min:200,max:1000,step:5,d:450,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:200,max:1008,step:5,d:400,u:'cm'},
+   {k:'Hs',l:'Altezza sotto gronda',t:'r',min:200,max:300,step:5,d:250,u:'cm'},
+   {k:'ang',l:'Apertura lame',t:'r',min:0,max:125,step:5,d:45,u:'°'},
+   {k:'dos',l:'Due settori indipendenti (DOS)',t:'chk',d:false},
+   {k:'ang2',l:'Apertura lame 2° settore',t:'r',min:0,max:125,step:5,d:0,u:'°',show:p=>p.dos},
+   ...ZIP,LED]},
+ {id:'armonia',name:'Armonia',fam:'Pergole a telo',calib:'ground',kind:'armonia',
+  note:'Copertura in piano, telo lievemente inclinato · gronda 15 × 35,2 · pilastri 15 × 15',
+  spec:{gw:.15,gh:.352,pw:.15,max2P:6.0},
+  ctrl:[VER,{k:'W',l:'Larghezza',t:'r',min:200,max:1000,step:5,d:450,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:200,max:1200,step:5,d:400,u:'cm'},
+   {k:'Hs',l:'Altezza sotto gronda',t:'r',min:200,max:300,step:5,d:250,u:'cm'},
+   {k:'open',l:'Telo raccolto',t:'r',min:0,max:100,step:5,d:0,u:'%'},
+   ...ZIP,LED]},
+ {id:'quick',name:'Quick',fam:'Pergole a telo',calib:'ground',kind:'slope',
+  note:'Inclinata addossata · trave a muro 5 × 15 · gronda 11,5 × 15 · pilastri 11,5 × 11,5',
+  spec:{wb:[.05,.15],gut:[.115,.15],pil:[.115,.115],guide:[.05,.15],pillars:true},
+  ctrl:[{k:'W',l:'Larghezza',t:'r',min:200,max:1300,step:5,d:500,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:150,max:700,step:5,d:400,u:'cm'},
+   {k:'Hw',l:'Altezza attacco a muro',t:'r',min:220,max:400,step:5,d:300,u:'cm'},
+   {k:'Hf',l:'Altezza frontale sotto gronda',t:'r',min:190,max:320,step:5,d:235,u:'cm'},
+   {k:'camp',l:'Campate',t:'sel',o:[['0','Automatico'],['1','Singola'],['2','Doppia'],['3','Tripla']],d:'0'},
+   {k:'open',l:'Telo raccolto',t:'r',min:0,max:100,step:5,d:0,u:'%'},...ZIP]},
+ {id:'compakt',name:'Compakt',fam:'Pergole a telo',calib:'ground',kind:'slope',
+  note:'Inclinata addossata · trave a muro 5 × 11,5 · gronda 11,5 × 15 · pilastri 5 × 11,5',
+  spec:{wb:[.05,.115],gut:[.115,.15],pil:[.05,.115],guide:[.05,.115],pillars:true},
+  ctrl:[{k:'W',l:'Larghezza',t:'r',min:200,max:1300,step:5,d:450,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:150,max:500,step:5,d:350,u:'cm'},
+   {k:'Hw',l:'Altezza attacco a muro',t:'r',min:220,max:400,step:5,d:290,u:'cm'},
+   {k:'Hf',l:'Altezza frontale sotto gronda',t:'r',min:190,max:320,step:5,d:230,u:'cm'},
+   {k:'pilM',l:'Pilastro maggiorato 11,5 × 11,5',t:'chk',d:false},
+   {k:'camp',l:'Campate',t:'sel',o:[['0','Automatico'],['1','Singola'],['2','Doppia'],['3','Tripla']],d:'0'},
+   {k:'open',l:'Telo raccolto',t:'r',min:0,max:100,step:5,d:0,u:'%'},...ZIP]},
+ {id:'tendal',name:'Tendal',fam:'Pergole a telo',calib:'ground',kind:'slope',
+  note:'Copertura inclinata su struttura esistente · trave a muro 5 × 15 · gronda 14 × 7',
+  spec:{wb:[.05,.15],gut:[.07,.14],pil:[.12,.12],guide:[.05,.13],pillars:false,support:true},
+  ctrl:[{k:'W',l:'Larghezza',t:'r',min:200,max:1300,step:5,d:450,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:150,max:700,step:5,d:400,u:'cm'},
+   {k:'Hw',l:'Altezza attacco a muro',t:'r',min:220,max:400,step:5,d:300,u:'cm'},
+   {k:'Hf',l:'Altezza frontale',t:'r',min:190,max:320,step:5,d:245,u:'cm'},
+   {k:'camp',l:'Campate',t:'sel',o:[['0','Automatico'],['1','Singola'],['2','Doppia'],['3','Tripla']],d:'0'},
+   {k:'sup',l:'Mostra struttura di appoggio',t:'chk',d:true},
+   {k:'open',l:'Telo raccolto',t:'r',min:0,max:100,step:5,d:0,u:'%'}]},
+ {id:'skylight',name:'Skylight',fam:'Pergole a telo',calib:'ground',kind:'sky',
+  note:'Copertura sospesa in piano o inclinata, per giardini e lucernari · fino a 1300 × 700',
+  spec:{guide:[.05,.15]},
+  ctrl:[{k:'tipo',l:'Tipo',t:'sel',o:[['piano','In piano (solo sole)'],['incl','Inclinata (tenuta acqua)']],d:'incl'},
+   {k:'W',l:'Larghezza',t:'r',min:200,max:1300,step:5,d:450,u:'cm'},
+   {k:'D',l:'Profondità',t:'r',min:150,max:700,step:5,d:400,u:'cm'},
+   {k:'H',l:'Altezza',t:'r',min:220,max:450,step:5,d:280,u:'cm'},
+   {k:'sup',l:'Mostra struttura di appoggio',t:'chk',d:true},
+   {k:'open',l:'Telo raccolto',t:'r',min:0,max:100,step:5,d:0,u:'%'}]},
+ {id:'fly',name:'Fly',fam:'Pergole a telo',calib:'ground',kind:'fly',
+  note:'Copertura inclinata a sbalzo, senza pilastri · fino a 400 × 350 · trave a muro 5 × 11,5',
+  spec:{wb:[.05,.115],guide:[.05,.115]},
+  ctrl:[{k:'W',l:'Larghezza',t:'r',min:150,max:400,step:5,d:350,u:'cm'},
+   {k:'D',l:'Sporgenza',t:'r',min:100,max:350,step:5,d:250,u:'cm'},
+   {k:'Hw',l:'Altezza attacco a muro',t:'r',min:220,max:350,step:5,d:280,u:'cm'},
+   {k:'slope',l:'Pendenza',t:'r',min:5,max:30,step:1,d:15,u:'%'},
+   {k:'open',l:'Telo raccolto',t:'r',min:0,max:100,step:5,d:0,u:'%'}]},
+ {id:'belvedere',name:'Belvedere',fam:'Vetrate',calib:'wall',kind:'glass',
+  note:'Vetrata scorrevole con profilo sottile · vetro temprato 10 mm · ante max 105 × 300',
+  spec:{maxH:3.0,frame:true},
+  ctrl:[{k:'W',l:'Larghezza vano',t:'r',min:150,max:800,step:5,d:420,u:'cm'},
+   {k:'H',l:'Altezza vano',t:'r',min:180,max:300,step:5,d:240,u:'cm'},
+   {k:'ap',l:'Apertura',t:'sel',o:[['sx','Laterale, raccolta a sinistra'],['dx','Laterale, raccolta a destra'],['c','Centrale']],d:'sx'},
+   {k:'open',l:'Ante aperte',t:'r',min:0,max:100,step:5,d:0,u:'%'}]},
+ {id:'scenica',name:'Scenica',fam:'Vetrate',calib:'wall',kind:'glass',
+  note:'Vetrata scorrevole tutto vetro · guarnizione trasparente · ante max 105 × 250',
+  spec:{maxH:2.5,frame:false},
+  ctrl:[{k:'W',l:'Larghezza vano',t:'r',min:150,max:800,step:5,d:420,u:'cm'},
+   {k:'H',l:'Altezza vano',t:'r',min:180,max:250,step:5,d:240,u:'cm'},
+   {k:'ap',l:'Apertura',t:'sel',o:[['sx','Laterale, raccolta a sinistra'],['dx','Laterale, raccolta a destra'],['c','Centrale']],d:'sx'},
+   {k:'open',l:'Ante aperte',t:'r',min:0,max:100,step:5,d:0,u:'%'}]}
+];
+
+function makeModels(THREE, RoundedBoxGeometry){
+  const V = (x,y,z)=>new THREE.Vector3(x,y,z);
+  const geoCache = new Map();
+  function rgeo(w,h,d){
+    const k=w.toFixed(3)+'|'+h.toFixed(3)+'|'+d.toFixed(3);
+    let g=geoCache.get(k);
+    if(!g){const r=Math.max(.0008,Math.min(.006,w/2-1e-4,h/2-1e-4,d/2-1e-4));g=new RoundedBoxGeometry(w,h,d,2,r);geoCache.set(k,g);}
+    return g;
+  }
+  function box(g,w,h,d,x,y,z,m){const o=new THREE.Mesh(rgeo(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o;}
+  function beam(g,a,b,w,h,m,up=V(0,1,0)){const L=a.distanceTo(b);const o=new THREE.Mesh(rgeo(w,h,L),m);
+    o.position.copy(a).add(b).multiplyScalar(.5);o.up.copy(up);o.lookAt(b);o.castShadow=o.receiveShadow=true;g.add(o);return o;}
+
+  // profilo lama 23,5 x 5,3 cm
+  const bladeShape=(()=>{const s=new THREE.Shape(),w=.1175,t=.022;
+    s.moveTo(-w,.002);s.quadraticCurveTo(-w*.55,t,0,t);s.quadraticCurveTo(w*.6,t,w-.004,.006);
+    s.lineTo(w,-.004);s.lineTo(w,-.016);s.lineTo(w-.013,-.016);s.lineTo(w-.013,-.006);
+    s.quadraticCurveTo(0,-.016,-w+.02,-.006);s.lineTo(-w+.02,-.03);s.lineTo(-w+.008,-.03);s.lineTo(-w+.008,-.004);s.lineTo(-w,.002);return s;})();
+  const bladeCache=new Map();
+  function bladeGeo(len){const k=len.toFixed(3);let g=bladeCache.get(k);
+    if(!g){g=new THREE.ExtrudeGeometry(bladeShape,{depth:len,bevelEnabled:false,curveSegments:6});
+      g.translate(0,0,-len/2);g.rotateY(Math.PI/2);g.computeVertexNormals();bladeCache.set(k,g);}return g;}
+
+  function blades(g,x0,x1,z0,z1,yc,angs,o,M,inst){
+    const len=x1-x0-.012;if(len<=.1||z1-z0<=.1)return;
+    const pitch=.205,n=Math.max(1,Math.round((z1-z0)/pitch)),p=(z1-z0)/n;
+    const pe=p-(p-.07)*o;const geo=bladeGeo(len);
+    const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),s=V(1,1,1);
+    const mats=[];
+    for(let i=0;i<n;i++){const a0=(n>1&&angs.length>1&&i>=Math.floor(n/2))?angs[1]:angs[0];
+      const a=o>0?a0+(90-a0)*Math.min(1,o*2.5):a0;
+      e.set(-a*Math.PI/180,0,0);q.setFromEuler(e);
+      m4.compose(V((x0+x1)/2,yc,z0+pe*(i+.5)),q,s);mats.push(m4.clone());}
+    if(inst){const im=new THREE.InstancedMesh(geo,M.blade,n);mats.forEach((m,i)=>im.setMatrixAt(i,m));
+      im.castShadow=im.receiveShadow=true;g.add(im);}
+    else mats.forEach(m=>{const o2=new THREE.Mesh(geo,M.blade);o2.applyMatrix4(m);o2.castShadow=true;g.add(o2);});
+  }
+
+  // telo scorrevole ad impacchettamento tra due guide; A = lato muro, B = lato frontale
+  function fabricRun(g,x0,x1,A,B,o,M){
+    const L=A.distanceTo(B);if(L<.2)return;const dir=B.clone().sub(A).normalize();
+    const n=Math.max(2,Math.round(L/.5)),s0=L/n,s=s0-(s0-.075)*o;
+    const sag=Math.sqrt(Math.max(0,3*s*(s0-s)/8));
+    const seg=10,pos=[],idx=[];let row=0;
+    for(let k=0;k<n;k++){for(let j=0;j<=seg;j++){if(k>0&&j===0)continue;const u=j/seg;
+      const d=s*(k+u),h=sag*4*u*(1-u),P=A.clone().addScaledVector(dir,d);P.y-=h;
+      pos.push(x0,P.y,P.z,x1,P.y,P.z);
+      if(row>0){const a=(row-1)*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}row++;}}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setIndex(idx);geo.computeVertexNormals();
+    const f=new THREE.Mesh(geo,M.fabric);f.castShadow=true;f.receiveShadow=true;g.add(f);
+    for(let k=1;k<=n;k++){const P=A.clone().addScaledVector(dir,s*k);
+      const b=beam(g,V(x0+.005,P.y-.012,P.z),V(x1-.005,P.y-.012,P.z),.045,.028,M.frame);}
+  }
+  function zipScreen(g,a,b,top,drop,M){ // a,b: punti a terra (x,z); tenda verticale
+    const w=Math.hypot(b.x-a.x,b.z-a.z);if(w<.1)return;const h=Math.max(.05,drop);
+    const pl=new THREE.Mesh(new THREE.PlaneGeometry(w,h),M.zip);
+    pl.position.set((a.x+b.x)/2,top-h/2,(a.z+b.z)/2);pl.rotation.y=Math.atan2(-(b.z-a.z),b.x-a.x);
+    pl.castShadow=true;g.add(pl);
+    const bar=new THREE.Mesh(rgeo(w,.04,.03),M.frame);bar.position.set(pl.position.x,top-h,pl.position.z);bar.rotation.y=pl.rotation.y;bar.castShadow=true;g.add(bar);
+  }
+  function addZips(g,p,W,D,top,bottomTop,inset,au,M){
+    const drop=(bottomTop)*(p.zipDrop??100)/100;const e=inset;
+    if(p.zipF)zipScreen(g,{x:-W/2+e,z:D-e},{x:W/2-e,z:D-e},bottomTop,drop,M);
+    if(p.zipL)zipScreen(g,{x:-W/2+e,z:au?e:.02},{x:-W/2+e,z:D-e},bottomTop,drop,M);
+    if(p.zipR)zipScreen(g,{x:W/2-e,z:D-e},{x:W/2-e,z:au?e:.02},bottomTop,drop,M);
+  }
+
+  function frameBox(g,W,D,Hs,gw,gh,pw,max2P,au,M,ledOn){
+    const yc=Hs+gh/2,nW=Math.max(1,Math.ceil(W/5.0-1e-6)),nD=D>max2P+1e-6?2:1;
+    const xs=[...Array(nW+1)].map((_,i)=>-W/2+W*i/nW),zs=[...Array(nD+1)].map((_,i)=>D*i/nD);
+    const xc=x=>x<=-W/2+1e-6?-W/2+gw/2:x>=W/2-1e-6?W/2-gw/2:x,zc=z=>z<=1e-6?gw/2:z>=D-1e-6?D-gw/2:z;
+    zs.forEach(z=>box(g,W,gh,gw,0,yc,zc(z),M.frame));
+    xs.forEach(x=>box(g,gw,gh*.98,D-2*gw,xc(x),yc,D/2,M.frame));
+    xs.forEach(x=>zs.forEach(z=>{if(z<1e-6&&!au)return;
+      box(g,pw,Hs,pw,xc(x),Hs/2,zc(z),M.frame);box(g,pw+.03,.012,pw+.03,xc(x),.006,zc(z),M.frame);}));
+    if(ledOn){const t=.012;
+      box(g,W-2*gw,t,.02,0,Hs-t/2,D-gw-.012,M.led);box(g,W-2*gw,t,.02,0,Hs-t/2,gw+.012,M.led);
+      box(g,.02,t,D-2*gw,-W/2+gw+.012,Hs-t/2,D/2,M.led);box(g,.02,t,D-2*gw,W/2-gw-.012,Hs-t/2,D/2,M.led);}
+    const cells=[];for(let i=0;i<nW;i++)for(let j=0;j<nD;j++)cells.push({
+      x0:xs[i]+(i===0?gw:gw/2),x1:xs[i+1]-(i===nW-1?gw:gw/2),z0:zs[j]+(j===0?gw:gw/2),z1:zs[j+1]-(j===nD-1?gw:gw/2)});
+    return cells;
+  }
+
+  function build(prod,p,M,inst=true){
+    const g=new THREE.Group(),cm=v=>v/100;let ext;
+    if(prod.kind==='bio'){const s=prod.spec,W=cm(p.W),D=cm(p.D),Hs=cm(p.Hs),au=p.ver==='AU';
+      const cells=frameBox(g,W,D,Hs,s.gw,s.gh,s.pw,s.max2P,au,M,p.led);
+      const angs=p.dos?[p.ang,p.ang2]:[p.ang];const o=s.retract?(p.ret||0)/100:0;
+      cells.forEach(c=>blades(g,c.x0,c.x1,c.z0,c.z1,Hs+s.gh*.7,angs,o,M,inst));
+      addZips(g,p,W,D,Hs,Hs,s.gw/2,au,M);ext={W,D,H:Hs+s.gh};}
+    else if(prod.kind==='armonia'){const s=prod.spec,W=cm(p.W),D=cm(p.D),Hs=cm(p.Hs),au=p.ver==='AU';
+      const cells=frameBox(g,W,D,Hs,s.gw,s.gh,s.pw,s.max2P,au,M,p.led);
+      cells.forEach(c=>{const yA=Hs+s.gh*.78,yB=yA-(c.z1-c.z0)*.03;
+        fabricRun(g,c.x0+.01,c.x1-.01,V(0,yA,c.z0+.02),V(0,yB,c.z1-.02),(p.open||0)/100,M);});
+      addZips(g,p,W,D,Hs,Hs,s.gw/2,au,M);ext={W,D,H:Hs+s.gh};}
+    else if(prod.kind==='slope'){const s=prod.spec,W=cm(p.W),D=cm(p.D),Hw=cm(p.Hw),Hf=Math.min(cm(p.Hf),Hw-.15);
+      const [gd,gh]=s.gut,[wbT,wbH]=s.wb,[gdw,gdh]=s.guide;
+      const pil=(p.pilM?[.115,.115]:s.pil);
+      let nC=+p.camp||Math.min(3,Math.max(1,Math.ceil(W/4.5-1e-6)));
+      const gx=[...Array(nC+1)].map((_,i)=>-W/2+gdw/2+(W-gdw)*i/nC);
+      box(g,W,wbH,wbT,0,Hw-wbH/2,wbT/2,M.frame);
+      // tettuccio di protezione con doghe
+      const tr=box(g,W,.025,.32,0,Hw+.03,wbT+.15,M.frame);tr.rotation.x=.18;
+      for(let i=0;i<5;i++){const d=box(g,W,.006,.012,0,Hw+.045-i*.011,wbT+.04+i*.06,M.frame);}
+      const front=Hf+gh;
+      gx.forEach(x=>beam(g,V(x,Hw-.05,wbT),V(x,front-gh*.25,D-gd),gdw,gdh,M.frame));
+      box(g,W,gh,gd,0,Hf+gh/2,D-gd/2,M.frame);
+      const showPil=s.pillars||(s.support&&p.sup);
+      if(showPil){const xsP=s.pillars?gx:[-W/2+.06,...(W>4.2?[0]:[]),W/2-.06];
+        xsP.forEach(x0=>{const x=Math.max(-W/2+pil[0]/2,Math.min(W/2-pil[0]/2,x0));box(g,pil[0],Hf,pil[1],x,Hf/2,D-gd/2,s.pillars?M.frame:M.support);
+          box(g,pil[0]+.03,.012,pil[1]+.03,x,.006,D-gd/2,s.pillars?M.frame:M.support);});
+        if(!s.pillars)box(g,W,.14,.1,0,Hf-.07,D-gd/2,M.support);}
+      for(let i=0;i<nC;i++)fabricRun(g,gx[i]+gdw/2,gx[i+1]-gdw/2,V(0,Hw-.04,wbT+.1),V(0,front-gh*.3,D-gd-.04),(p.open||0)/100,M);
+      if(s.pillars)addZips(g,p,W,D,Hf,Hf,gd/2,false,M);
+      ext={W,D,H:Hw+.1};}
+    else if(prod.kind==='sky'){const W=cm(p.W),D=cm(p.D),H=cm(p.H),[gw,gh]=prod.spec.guide;
+      const yb=H,yf=p.tipo==='incl'?H-D*.12:H;
+      [-W/2+gw/2,W/2-gw/2].forEach(x=>beam(g,V(x,yb,gw),V(x,yf,D-gw),gw,gh,M.frame));
+      box(g,W,gh,gw,0,yb,gw/2,M.frame);box(g,W,gh,gw,0,yf,D-gw/2,M.frame);
+      const nC=Math.max(1,Math.ceil(W/4.5-1e-6));
+      for(let i=1;i<nC;i++){const x=-W/2+W*i/nC;beam(g,V(x,yb,gw),V(x,yf,D-gw),gw,gh,M.frame);}
+      for(let i=0;i<nC;i++){const xa=-W/2+(i?W*i/nC+gw/2:gw),xb=-W/2+W*(i+1)/nC-(i===nC-1?gw:gw/2);
+        fabricRun(g,xa,xb,V(0,yb+.02,gw+.05),V(0,yf+.02,D-gw-.05),(p.open||0)/100,M);}
+      if(p.sup){[[-W/2+.06,.06],[W/2-.06,.06],[-W/2+.06,D-.06],[W/2-.06,D-.06]].forEach(([x,z])=>{
+          const top=z<D/2?yb:yf;box(g,.12,top-gh/2,.12,x,(top-gh/2)/2,z,M.support);});}
+      ext={W,D,H:H+.2};}
+    else if(prod.kind==='fly'){const W=cm(p.W),D=cm(p.D),Hw=cm(p.Hw),[wbT,wbH]=prod.spec.wb,[gw,gh]=prod.spec.guide;
+      const yf=Hw-.05-D*(p.slope/100);
+      box(g,W,wbH,wbT,0,Hw-wbH/2,wbT/2,M.frame);
+      const tr=box(g,W,.025,.3,0,Hw+.03,wbT+.14,M.frame);tr.rotation.x=.18;
+      const xs=[-W/2+gw/2,W/2-gw/2];
+      xs.forEach(x=>{beam(g,V(x,Hw-.05,wbT),V(x,yf,D),gw,gh,M.frame);
+        const t=.62,P=V(x,Hw-.05+(yf-Hw+.05)*t-gh/2,wbT+(D-wbT)*t),ya=Hw-.95;
+        beam(g,V(x,ya,.03),P,.04,.04,M.frame,V(1,0,0));
+        box(g,.12,.18,.012,x,ya,.006,M.frame);});
+      box(g,W,.07,.07,0,yf,D-.035,M.frame);
+      fabricRun(g,-W/2+gw,W/2-gw,V(0,Hw-.04,wbT+.08),V(0,yf+.01,D-.06),(p.open||0)/100,M);
+      ext={W,D,H:Hw+.1};}
+    else if(prod.kind==='glass'){const W=cm(p.W),H=Math.min(cm(p.H),prod.spec.maxH),fr=prod.spec.frame;
+      const centr=p.ap==='c';const per=centr?Math.max(1,Math.ceil(W/2/1.05-1e-6)):Math.max(2,Math.ceil(W/1.05-1e-6));
+      const tracks=per,td=.034,depth=tracks*td+.02,o=(p.open||0)/100;
+      box(g,W,.07,depth,0,H-.035,depth/2,M.frame);box(g,W,.016,depth,0,.008,depth/2,M.frame);
+      box(g,.03,H,depth,-W/2+.015,H/2,depth/2,M.frame);box(g,.03,H,depth,W/2-.015,H/2,depth/2,M.frame);
+      const sides=centr?[[-1,W/2],[1,W/2]]:[[p.ap==='dx'?1:-1,W]];
+      sides.forEach(([sd,span])=>{const pw=(span-.03)/per+.035,x0=centr?(sd<0?-W/2+.03:0):-W/2+.03,x1=centr?(sd<0?0:W/2-.03):W/2-.03;
+        for(let i=0;i<per;i++){const cx=x0+(x1-x0)*(i+.5)/per;const stack=sd<0?x0+pw/2:x1-pw/2;
+          const x=cx+(stack-cx)*o;const rank=sd<0?i:per-1-i;const z=.01+td*(rank+.5);
+          const ph=H-.09,y=.016+ph/2+.005;
+          const gl=new THREE.Mesh(rgeo(pw-.004,ph,.01),M.glass);gl.position.set(x,y,z);g.add(gl);
+          if(fr){box(g,pw,.032,.022,x,.016+.016,z,M.frame);box(g,pw,.032,.022,x,H-.07-.016,z,M.frame);
+            box(g,.016,ph,.022,x-pw/2+.008,y,z,M.frame);box(g,.016,ph,.022,x+pw/2-.008,y,z,M.frame);
+            box(g,.012,.16,.03,x+(sd<0?pw/2-.05:-pw/2+.05),1.05,z,M.frame);}
+          else{box(g,pw-.01,.026,.018,x,.016+.013,z,M.frame);box(g,pw-.01,.026,.018,x,H-.07-.013,z,M.frame);
+            const gk=new THREE.Mesh(rgeo(.008,ph,.012),M.gasket);gk.position.set(x+pw/2-.004,y,z);g.add(gk);}
+        }});
+      ext={W,D:depth,H};}
+    return {group:g,ext};
+  }
+  function clearCaches(){geoCache.forEach(g=>g.dispose());geoCache.clear();bladeCache.forEach(g=>g.dispose());bladeCache.clear();}
+  return {build,clearCaches};
+}
+
+</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+const $=id=>document.getElementById(id);
+const MOD=makeModels(THREE,RoundedBoxGeometry);
+const LS={get(k,d){try{const v=localStorage.getItem('rp_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('rp_'+k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- stato ---------- */
+const S={prod:LS.get('prod','diesisO'),params:{},ral:LS.get('ral','7016'),fab:LS.get('fab','503'),glass:LS.get('glass','chiaro'),
+  lens:26,az:-40,el:50,exp:100,sh:45,wallSh:true,showPts:true,photo:null,pts:{ground:null,wall:null},pose:null};
+const saved=LS.get('params',{});
+PRODUCTS.forEach(pr=>{const p={};pr.ctrl.forEach(c=>p[c.k]=c.d);S.params[pr.id]=Object.assign(p,saved[pr.id]||{});});
+if(!PRODUCTS.find(p=>p.id===S.prod))S.prod='diesisO';
+const prod=()=>PRODUCTS.find(p=>p.id===S.prod);
+
+/* ---------- three ---------- */
+const canvas=$('gl');
+const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,preserveDrawingBuffer:true});
+renderer.setClearColor(0x000000,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),.04).texture;
+const camera=new THREE.PerspectiveCamera(50,1,.05,500);
+const root=new THREE.Group();root.matrixAutoUpdate=false;scene.add(root);
+const hemi=new THREE.HemisphereLight(0xE4ECF3,0x8A8170,.75);root.add(hemi);
+const sun=new THREE.DirectionalLight(0xFFF3E2,2.4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.02;
+root.add(sun);root.add(sun.target);
+const groundSh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShadowMaterial({opacity:.45}));groundSh.rotation.x=-Math.PI/2;groundSh.receiveShadow=true;root.add(groundSh);
+const wallSh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShadowMaterial({opacity:.35}));wallSh.receiveShadow=true;root.add(wallSh);
+let modelGroup=null;
+
+/* texture "ruvido fine texture" per la verniciatura */
+const grain=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),d=x.createImageData(128,128);
+  for(let i=0;i<d.data.length;i+=4){const v=118+Math.random()*20;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255;}x.putImageData(d,0,0);
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(6,6);return t;})();
+function frameMat(code){const r=RAL.find(r=>r[0]===code)||RAL[16],met=code==='9006';
+  return new THREE.MeshStandardMaterial({color:new THREE.Color(r[2]),roughness:met?.38:.62,metalness:met?.75:.12,bumpMap:grain,bumpScale:met?.2:.6,envMapIntensity:.7});}
+function glassMat(k){const base={metalness:0,roughness:.03,transparent:true,depthWrite:false,envMapIntensity:1.4,side:THREE.DoubleSide};
+  const t={chiaro:{color:'#CFE3DE',opacity:.16},satinato:{color:'#EEF2F1',opacity:.62,roughness:.55},bronzo:{color:'#7E6046',opacity:.36},
+    grigio:{color:'#4F575B',opacity:.4},riflettente:{color:'#9EADB4',opacity:.72,metalness:.85,roughness:.06}}[k];
+  return new THREE.MeshStandardMaterial(Object.assign(base,t,{color:new THREE.Color(t.color)}));}
+function materials(){const f=FAB.find(f=>f[0]===S.fab)||FAB[0];
+  const fabric=new THREE.MeshStandardMaterial({color:new THREE.Color(f[2]),roughness:.92,metalness:0,side:THREE.DoubleSide,envMapIntensity:.4});
+  return {frame:frameMat(S.ral),blade:frameMat(S.ral),fabric,
+    zip:new THREE.MeshStandardMaterial({color:new THREE.Color(f[2]),roughness:.95,transparent:true,opacity:.86,side:THREE.DoubleSide,envMapIntensity:.3}),
+    led:new THREE.MeshStandardMaterial({color:0xFFE7B8,emissive:0xFFD38A,emissiveIntensity:2.2}),
+    support:new THREE.MeshStandardMaterial({color:0xA9A39A,roughness:.8}),
+    glass:glassMat(S.glass),gasket:new THREE.MeshStandardMaterial({color:0xDDE6E6,transparent:true,opacity:.35,roughness:.2})};}
+let MATS=null;
+
+function rebuild(){
+  if(modelGroup){root.remove(modelGroup);modelGroup.traverse(o=>{if(o.isInstancedMesh)o.dispose?.()});}
+  if(MATS)Object.values(MATS).forEach(m=>m.dispose());
+  MOD.clearCaches();MATS=materials();
+  const pr=prod(),r=MOD.build(pr,S.params[pr.id],MATS,true);modelGroup=r.group;root.add(modelGroup);S.ext=r.ext;
+  const {W,D,H}=r.ext,ground=pr.calib==='ground';
+  groundSh.scale.set(W+6,ground?D+6:5,1);groundSh.position.set(0,.002,ground?D/2:1.2);
+  const wallOn=ground&&S.wallSh&&!(S.params[pr.id].ver==='AU')&&pr.kind!=='sky';
+  wallSh.visible=wallOn;wallSh.scale.set(W+3,H+1.2,1);wallSh.position.set(0,(H+1.2)/2,.003);
+  updateLight();solve();const ar=$('arOpen');if(ar&&!ar.hidden){ar.hidden=true;}
+}
+function updateLight(){const {W=4,D=4,H=3}=S.ext||{};const pr=prod();
+  const a=S.az*Math.PI/180,e=S.el*Math.PI/180,dir=new THREE.Vector3(Math.sin(a)*Math.cos(e),Math.sin(e),Math.cos(a)*Math.cos(e));
+  const c=new THREE.Vector3(0,H/2,pr.calib==='ground'?D/2:0);sun.target.position.copy(c);sun.position.copy(c).addScaledVector(dir,25);
+  const R=Math.max(W,D,H)/1.4+2.5;Object.assign(sun.shadow.camera,{left:-R,right:R,top:R,bottom:-R,near:1,far:60});sun.shadow.camera.updateProjectionMatrix();
+  groundSh.material.opacity=S.sh/100;wallSh.material.opacity=S.sh/100*.75;
+  renderer.toneMappingExposure=S.exp/100;sun.intensity=2.4*Math.max(.35,Math.sin(e)*1.15);requestRender();}
+
+/* ---------- foto e punti ---------- */
+const imgEl=$('photo'),svg=$('hs'),stage=$('stage'),frame=$('frame');
+let disp={x:0,y:0,w:1,h:1,s:1};
+function layout(){if(!S.photo)return;const sw=stage.clientWidth,sh=stage.clientHeight,{w,h}=S.photo;
+  const s=Math.min(sw/w,sh/h),dw=Math.round(w*s),dh=Math.round(h*s);disp={x:Math.round((sw-dw)/2),y:Math.round((sh-dh)/2),w:dw,h:dh,s};
+  Object.assign(frame.style,{left:disp.x+'px',top:disp.y+'px',width:dw+'px',height:dh+'px'});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.setSize(dw,dh,false);
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);drawHandles();requestRender();}
+new ResizeObserver(layout).observe(stage);
+
+function defaultPts(mode,w,h){return mode==='ground'?[[.3*w,.6*h],[.7*w,.6*h],[.84*w,.88*h],[.16*w,.88*h]]:[[.3*w,.78*h],[.7*w,.78*h],[.7*w,.36*h],[.3*w,.36*h]];}
+const mode=()=>prod().calib;
+const LABELS={ground:['Muro sx','Muro dx','Pilastro dx','Pilastro sx'],wall:['Basso sx','Basso dx','Alto dx','Alto sx']};
+function drawHandles(){if(!S.photo)return;const pts=S.pts[mode()],r=13/disp.s,sw=2/disp.s,lbl=LABELS[mode()];
+  const poly=pts.map(p=>p.join(',')).join(' ');const cx=pts.reduce((a,p)=>a+p[0],0)/4,cy=pts.reduce((a,p)=>a+p[1],0)/4;
+  svg.innerHTML=S.showPts?`<polygon points="${poly}" fill="rgba(110,167,209,.10)" stroke="#fff" stroke-width="${sw}" stroke-dasharray="${6/disp.s} ${5/disp.s}"/>
+   <g class="h" data-i="c" transform="translate(${cx},${cy})"><circle r="${r*1.25}" fill="rgba(20,26,30,.55)" stroke="#fff" stroke-width="${sw}"/>
+    <path d="M${-r*.7} 0H${r*.7}M0 ${-r*.7}V${r*.7}" stroke="#fff" stroke-width="${sw}"/></g>`+
+   pts.map((p,i)=>`<g class="h" data-i="${i}" transform="translate(${p[0]},${p[1]})"><circle r="${r*1.9}" fill="transparent"/><circle r="${r}" fill="#2B6893" stroke="#fff" stroke-width="${sw*1.2}"/>
+    <text y="${r*.36}" text-anchor="middle" font-size="${r*1.05}" font-family="IBM Plex Mono,monospace" fill="#fff">${i+1}</text>
+    <text y="${-r*1.5}" text-anchor="middle" font-size="${r*.95}" font-family="Barlow,sans-serif" font-weight="600" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width="${r*.22}" paint-order="stroke">${lbl[i]}</text></g>`).join(''):'';}
+let drag=null;
+svg.addEventListener('pointerdown',e=>{const h=e.target.closest('.h');if(!h)return;e.preventDefault();
+  drag={i:h.dataset.i,x:e.clientX,y:e.clientY,start:S.pts[mode()].map(p=>p.slice())};h.setPointerCapture(e.pointerId);});
+svg.addEventListener('pointermove',e=>{if(!drag)return;const dx=(e.clientX-drag.x)/disp.s,dy=(e.clientY-drag.y)/disp.s,pts=S.pts[mode()],{w,h}=S.photo;
+  const cl=(v,m)=>Math.max(-m*.25,Math.min(m*1.25,v));
+  if(drag.i==='c')drag.start.forEach((p,i)=>{pts[i]=[cl(p[0]+dx,w),cl(p[1]+dy,h)]});
+  else{const p=drag.start[+drag.i];pts[+drag.i]=[cl(p[0]+dx,w),cl(p[1]+dy,h)];}
+  drawHandles();solve();});
+const endDrag=()=>{drag=null};svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
+
+function focalPx(){const {w,h}=S.photo;return Math.hypot(w,h)*S.lens/43.27;}
+function solve(){if(!S.photo||!S.ext)return;const pr=prod(),{w,h}=S.photo,f=focalPx(),m=pr.calib;
+  const p=S.params[pr.id];const W=p.W/100,L=m==='ground'?(p.D/100):Math.min(p.H/100,pr.spec.maxH||9);
+  camera.fov=2*Math.atan(h/2/f)*180/Math.PI;camera.aspect=w/h;camera.updateProjectionMatrix();
+  const r=solvePose(m,W,L,S.pts[m],f,w/2,h/2);const warn=$('poseWarn');
+  if(!r){root.visible=false;warn.hidden=false;warn.textContent='I punti si sovrappongono: allargali per ricostruire la prospettiva.';requestRender();return;}
+  root.visible=true;const {X,Y,Z,T}=r;root.matrix.set(X[0],Y[0],Z[0],T[0],X[1],Y[1],Z[1],T[1],X[2],Y[2],Z[2],T[2],0,0,0,1);root.matrixWorldNeedsUpdate=true;
+  warn.hidden=r.ok;if(!r.ok)warn.textContent=m==='ground'?'Il prodotto risulta capovolto: controlla che 1 e 2 siano sul muro e 3 e 4 verso di te.':'Il prodotto risulta capovolto: 1 e 2 vanno in basso, 3 e 4 in alto.';
+  updateTip();requestRender();}
+
+let rq=false;function requestRender(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;renderer.render(scene,camera);});}
+
+/* ---------- UI ---------- */
+function updateTip(){const pr=prod(),p=S.params[pr.id];
+  const dims=pr.calib==='ground'?`${p.W} × ${p.D} cm`:`${p.W} × ${Math.min(p.H,(pr.spec.maxH||9)*100)} cm`;
+  $('tip').innerHTML=`<span>${pr.name} · <b>${dims}</b></span>`+(S.photo?.sample?'<span>Foto di esempio: carica la tua</span>':'');}
+function buildProducts(){const fams=[...new Set(PRODUCTS.map(p=>p.fam))];
+  $('prods').innerHTML=fams.map(f=>`<div class="fl">${f}</div><div class="chips">${PRODUCTS.filter(p=>p.fam===f).map(p=>`<button type="button" class="chip" data-id="${p.id}" aria-pressed="${p.id===S.prod}">${p.name}</button>`).join('')}</div>`).join('');
+  $('prods').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{S.prod=b.dataset.id;LS.set('prod',S.prod);
+    $('prods').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));onProduct();});}
+function onProduct(){const pr=prod();$('pnote').textContent=pr.note;
+  $('howto').innerHTML=pr.calib==='ground'
+   ?`<ol><li>Trascina <b>1</b> e <b>2</b> a terra, contro il muro, dove inizia e finisce la ${pr.kind==='glass'?'vetrata':'pergola'}.</li><li>Trascina <b>3</b> e <b>4</b> a terra dove andranno i pilastri${pr.kind==='fly'||pr.kind==='sky'?' (o il bordo della copertura)':''}.</li><li>Le misure a destra devono essere quelle vere: la prospettiva si ricava da lì.</li></ol>`
+   :`<ol><li>Trascina <b>1</b> e <b>2</b> negli angoli in basso del vano da chiudere.</li><li>Trascina <b>3</b> e <b>4</b> negli angoli in alto.</li><li>Inserisci a destra larghezza e altezza vere del vano.</li></ol>`;
+  buildCtrls();buildColors();if(S.photo&&!S.pts[pr.calib])S.pts[pr.calib]=defaultPts(pr.calib,S.photo.w,S.photo.h);drawHandles();rebuild();}
+function persist(){const o={};PRODUCTS.forEach(p=>o[p.id]=S.params[p.id]);LS.set('params',o);}
+let rbT=null;function soon(){clearTimeout(rbT);rbT=setTimeout(()=>{rebuild();persist();},60);}
+function buildCtrls(){const pr=prod(),p=S.params[pr.id],box=$('ctrls');box.innerHTML='';
+  pr.ctrl.forEach(c=>{if(c.show&&!c.show(p))return;const id='c_'+c.k,row=document.createElement('div');row.className='row';
+    if(c.t==='r'){row.innerHTML=`<div class="lab"><label for="${id}">${c.l}</label><span class="num"><input type="number" inputmode="numeric" id="${id}n" min="${c.min}" max="${c.max}" step="${c.step}" value="${p[c.k]}" aria-label="${c.l}">${c.u}</span></div><input type="range" id="${id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${p[c.k]}">`;
+      const r=row.querySelector('input[type=range]'),n=row.querySelector('input[type=number]');
+      r.oninput=()=>{p[c.k]=+r.value;n.value=r.value;updateTip();soon();};
+      n.onchange=()=>{let v=Math.max(c.min,Math.min(c.max,+n.value||c.d));p[c.k]=v;n.value=v;r.value=v;updateTip();soon();};}
+    else if(c.t==='sel'){row.innerHTML=`<label for="${id}" class="lab">${c.l}</label><select id="${id}">${c.o.map(([v,l])=>`<option value="${v}"${String(p[c.k])===v?' selected':''}>${l}</option>`).join('')}</select>`;
+      row.querySelector('select').onchange=e=>{p[c.k]=e.target.value;buildCtrls();soon();};}
+    else{row.innerHTML=`<label class="chk"><input type="checkbox" id="${id}"${p[c.k]?' checked':''}> ${c.l}</label>`;
+      row.querySelector('input').onchange=e=>{p[c.k]=e.target.checked;buildCtrls();buildColors();soon();};}
+    box.appendChild(row);});}
+function swatchRow(title,list,cur,key,label){const wrap=document.createElement('div');wrap.className='row';
+  wrap.innerHTML=`<div class="lab"><span>${title}</span></div><div class="sw">${list.map(r=>`<button type="button" style="background:${r[2]}" data-k="${r[0]}" aria-pressed="${r[0]===cur}" title="${label(r)}" aria-label="${label(r)}"></button>`).join('')}</div><div class="swname">${label(list.find(r=>r[0]===cur)||list[0])}</div>`;
+  wrap.querySelectorAll('button').forEach(b=>b.onclick=()=>{S[key]=b.dataset.k;LS.set(key,S[key]);buildColors();rebuild();});return wrap;}
+function buildColors(){const pr=prod(),p=S.params[pr.id],box=$('colors');box.innerHTML='';
+  const ralName=r=>(r[0].startsWith('F')?r[0]:'RAL '+r[0])+' · '+r[1];
+  box.appendChild(swatchRow(pr.kind==='glass'?'Colore profili':'Colore struttura',RAL,S.ral,'ral',ralName));
+  const hasFab=['armonia','slope','sky','fly'].includes(pr.kind)||p.zipF||p.zipL||p.zipR;
+  if(hasFab)box.appendChild(swatchRow(pr.kind==='bio'?'Tessuto chiusure ZIP':'Tessuto telo',FAB,S.fab,'fab',r=>r[1]+' ('+r[0]+')'));
+  if(pr.kind==='glass'){const w=document.createElement('div');w.className='row';
+    w.innerHTML=`<div class="lab"><span>Vetro</span></div><div class="seg">${GLASS.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${k===S.glass}">${l}</button>`).join('')}</div>`;
+    w.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.glass=b.dataset.k;LS.set('glass',S.glass);buildColors();rebuild();});box.appendChild(w);}}
+
+/* luce e obiettivo */
+const LENSES=[['0,5×',13],['1×',26],['2×',52],['3×',77]];
+function lensUI(){$('lensOut').textContent=S.lens+' mm';$('lens').value=S.lens;
+  $('lensSeg').innerHTML=LENSES.map(([l,v])=>`<button type="button" data-v="${v}" aria-pressed="${v===S.lens}">${l}</button>`).join('');
+  $('lensSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.lens=+b.dataset.v;lensUI();solve();});}
+$('lens').oninput=e=>{S.lens=+e.target.value;lensUI();solve();};
+[['az','°'],['el','°'],['exp','%'],['sh','%']].forEach(([k,u])=>{const el=$(k),out=$(k+'Out');const set=()=>{S[k]=+el.value;out.textContent=el.value+u;};set();
+  el.oninput=()=>{set();updateLight();};});
+$('wallSh').onchange=e=>{S.wallSh=e.target.checked;rebuild();};
+$('resetPts').onclick=()=>{if(!S.photo)return;S.pts[mode()]=defaultPts(mode(),S.photo.w,S.photo.h);drawHandles();solve();};
+$('togglePts').onclick=e=>{S.showPts=!S.showPts;e.currentTarget.setAttribute('aria-pressed',S.showPts);e.currentTarget.textContent=S.showPts?'Punti visibili':'Punti nascosti';drawHandles();};
+
+/* ---------- caricamento foto ---------- */
+function exifFocal35(buf){try{const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return null;let o=2;
+  while(o<v.byteLength-4){const m=v.getUint16(o),len=v.getUint16(o+2);
+    if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){const t=o+10,le=v.getUint16(t)===0x4949,g16=p=>v.getUint16(p,le),g32=p=>v.getUint32(p,le);
+      const ifd=(p,want)=>{const n=g16(p);for(let i=0;i<n;i++){const e=p+2+i*12;if(want.includes(g16(e)))return{tag:g16(e),e};}return null;};
+      const ex=ifd(t+g32(t+4),[0x8769]);if(!ex)return null;const f=ifd(t+g32(ex.e+8),[0xA405]);return f?g16(f.e+8):null;}
+    if((m&0xFF00)!==0xFF00)break;o+=2+len;}}catch(e){}return null;}
+function setPhoto(img,w,h,opts={}){S.photo={img,w,h,sample:!!opts.sample};imgEl.src=img.src;
+  S.pts={ground:opts.ground||defaultPts('ground',w,h),wall:opts.wall||defaultPts('wall',w,h)};
+  if(opts.lens){S.lens=opts.lens;}lensUI();layout();onProduct();
+  $('lensNote').textContent=opts.lensFromExif?`Letto dalla foto: ${opts.lens} mm equivalenti. Cambialo solo se la prospettiva non torna.`:'iPhone: 0,5× = 13 mm, 1× = 26 mm, 2× = 52 mm, 3× = 77 mm.';}
+$('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const buf=await f.arrayBuffer();const lens=exifFocal35(buf);
+  const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{setPhoto(img,img.naturalWidth,img.naturalHeight,{lens:lens||26,lensFromExif:!!lens});};
+  img.onerror=()=>{$('tip').innerHTML='<span class="warn">Formato non leggibile. Su iPhone scegli la foto da "Libreria foto": viene convertita in JPEG.</span>';};img.src=url;e.target.value='';};
+
+/* ---------- foto di esempio generata ---------- */
+function sampleScene(){const W=1600,H=1200,c=document.createElement('canvas');c.width=W;c.height=H;
+  const r=new THREE.WebGLRenderer({canvas:c,antialias:true,preserveDrawingBuffer:true});r.outputColorSpace=THREE.SRGBColorSpace;r.toneMapping=THREE.ACESFilmicToneMapping;
+  r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;const sc=new THREE.Scene();
+  const tex=(w,h,draw,rep)=>{const cv=document.createElement('canvas');cv.width=w;cv.height=h;draw(cv.getContext('2d'),w,h);const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(...rep);}t.anisotropy=8;return t;};
+  sc.background=tex(4,256,(x,w,h)=>{const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#7FA6C9');g.addColorStop(.7,'#C9DBE8');g.addColorStop(1,'#E8EEF0');x.fillStyle=g;x.fillRect(0,0,w,h);});
+  const plaster=tex(256,256,(x,w,h)=>{x.fillStyle='#E7DFD2';x.fillRect(0,0,w,h);for(let i=0;i<5000;i++){x.fillStyle=`rgba(${Math.random()<.5?90:255},${Math.random()<.5?80:250},70,${Math.random()*.05})`;x.fillRect(Math.random()*w,Math.random()*h,2,2);}},[8,4]);
+  const tiles=tex(512,512,(x,w,h)=>{const n=4,s=w/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){const v=196+Math.random()*14;x.fillStyle=`rgb(${v},${v-8},${v-20})`;x.fillRect(i*s,j*s,s,s);}
+    x.strokeStyle='#9C9488';x.lineWidth=3;for(let i=0;i<=n;i++){x.beginPath();x.moveTo(i*s,0);x.lineTo(i*s,h);x.stroke();x.beginPath();x.moveTo(0,i*s);x.lineTo(w,i*s);x.stroke();}},[12.5,5]);
+  const M=(o)=>new THREE.MeshStandardMaterial(o);
+  const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;sc.add(m);return m;};
+  const fl=add(new THREE.PlaneGeometry(30,12),M({map:tiles,roughness:.85}),0,0,0);fl.rotation.x=-Math.PI/2;
+  const lawn=add(new THREE.PlaneGeometry(60,40),M({color:'#6F8A4B',roughness:1}),0,-.01,26);lawn.rotation.x=-Math.PI/2;
+  const wm=M({map:plaster,roughness:.95});const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+  add(B(5,6.6,.35),wm,-4.6,3.3,-.175);add(B(5,6.6,.35),wm,4.6,3.3,-.175);add(B(4.2,4.2,.35),wm,0,4.5,-.175);
+  add(B(14.6,.25,.6),M({color:'#F2EEE7',roughness:.8}),0,6.7,-.1);
+  add(B(4.2,2.4,.05),M({color:'#3E4347',roughness:.6}),0,1.2,-2.6);add(B(4.2,.05,2.6),M({color:'#BDB4A6',roughness:.8}),0,2.4,-1.3);
+  add(B(.05,2.4,2.6),wm,-2.1,1.2,-1.3);add(B(.05,2.4,2.6),wm,2.1,1.2,-1.3);
+  [[-1.4,1.1],[0,1.1],[1.4,1.1]].forEach(([x])=>add(B(1.25,2.2,.06),M({color:'#2C3135',roughness:.15,metalness:.4}),x,1.1,-2.5));
+  [[-4.6,4.4],[4.6,4.4],[0,4.4]].forEach(([x,y])=>{add(B(1.3,1.5,.05),M({color:'#4A5156',roughness:.2,metalness:.3}),x,y,.02);add(B(1.45,.08,.3),M({color:'#F2EEE7'}),x,y-.8,-.05);});
+  [[-3.4,.9],[3.6,1.3]].forEach(([x,s])=>{add(new THREE.CylinderGeometry(.28*s,.22*s,.55*s,24),M({color:'#8E7F6E',roughness:.9}),x,.275*s,.5);
+    add(new THREE.SphereGeometry(.5*s,20,14),M({color:'#4F6B3A',roughness:1}),x,.55*s+.4*s,.5);});
+  sc.add(new THREE.HemisphereLight(0xDDE8F2,0x8F8570,.9));const d=new THREE.DirectionalLight(0xFFF1DD,2.6);d.position.set(-9,14,10);d.castShadow=true;d.shadow.mapSize.set(2048,2048);
+  Object.assign(d.shadow.camera,{left:-12,right:12,top:12,bottom:-12});sc.add(d);
+  const f=Math.hypot(W,H)*26/43.27,cam=new THREE.PerspectiveCamera(2*Math.atan(H/2/f)*180/Math.PI,W/H,.1,200);cam.position.set(1.4,1.62,9.4);cam.lookAt(.2,1.45,1.6);
+  r.setSize(W,H,false);r.render(sc,cam);const url=c.toDataURL('image/jpeg',.9);
+  const proj=v=>{const p=new THREE.Vector3(...v).project(cam);return[(p.x+1)/2*W,(1-p.y)/2*H];};
+  const out={url,W,H,ground:[[-2.25,0,0],[2.25,0,0],[2.25,0,4],[-2.25,0,4]].map(proj),wall:[[-2.1,0,0],[2.1,0,0],[2.1,2.4,0],[-2.1,2.4,0]].map(proj)};
+  r.dispose();r.forceContextLoss?.();sc.traverse(o=>{o.geometry?.dispose();});return out;}
+
+/* ---------- esporta ---------- */
+async function composite(){const {w,h,img}=S.photo,k=Math.min(1,3000/Math.max(w,h)),ew=Math.round(w*k),eh=Math.round(h*k);
+  const c=document.createElement('canvas');c.width=ew;c.height=eh;const x=c.getContext('2d');x.drawImage(img,0,0,ew,eh);
+  renderer.setPixelRatio(1);renderer.setSize(ew,eh,false);renderer.render(scene,camera);x.drawImage(renderer.domElement,0,0,ew,eh);
+  layout();renderer.render(scene,camera);return c;}
+let lastBlob=null;
+$('save').onclick=async()=>{if(!S.photo)return;const c=await composite();
+  c.toBlob(b=>{lastBlob=b;const u=URL.createObjectURL(b);$('ovImg').src=u;$('ov').hidden=false;},'image/jpeg',.92);};
+$('ovClose').onclick=()=>{$('ov').hidden=true;};
+$('ovShare').onclick=async()=>{if(!lastBlob)return;const pr=prod();const name=`${pr.name.replace('/','-')}_${new Date().toISOString().slice(0,10)}.jpg`;
+  const file=new File([lastBlob],name,{type:'image/jpeg'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:pr.name});return;}}catch(e){if(e.name==='AbortError')return;}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(lastBlob);a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
+  $('ovText').textContent='Se il download non parte, tieni premuto sull\'immagine e scegli "Salva in Foto" (su computer: tasto destro, "Salva immagine").';};
+
+/* ---------- AR (iPhone, Quick Look) ---------- */
+const arLink=document.createElement('a');const arOK=arLink.relList&&arLink.relList.supports&&arLink.relList.supports('ar');
+if(!arOK)$('arNote').textContent="Disponibile su iPhone e iPad con Safari, quando l'app è pubblicata sul tuo sito.";
+$('arBtn').onclick=async()=>{const b=$('arBtn');b.disabled=true;b.textContent='Preparo il modello…';
+  try{const {USDZExporter}=await import('three/addons/exporters/USDZExporter.js');const pr=prod();
+    const mats=materials();const {group}=MOD.build(pr,S.params[pr.id],mats,false);const sc=new THREE.Scene();sc.add(group);
+    const data=await new USDZExporter().parseAsync?await new USDZExporter().parseAsync(sc):await new USDZExporter().parse(sc);
+    const url=URL.createObjectURL(new Blob([data],{type:'model/vnd.usdz+zip'}));
+    if(arOK){const a=$('arOpen');a.href=url;a.hidden=false;$('arNote').textContent='Modello pronto: tocca "Apri in AR" e appoggialo a terra.';}
+    else{const a=document.createElement('a');a.href=url;a.download=pr.name.replace('/','-')+'.usdz';document.body.appendChild(a);a.click();a.remove();
+      $('arNote').textContent='Ho preparato il file AR. Se non si è scaricato, apri l\'app dal tuo sito su iPhone.';}
+  }catch(e){$('arNote').textContent='Non sono riuscito a preparare il file AR: '+e.message;}
+  b.disabled=false;b.textContent='Prepara il modello AR';};
+
+/* ---------- avvio ---------- */
+buildProducts();lensUI();
+const smp=sampleScene();const simg=new Image();
+simg.onload=()=>setPhoto(simg,smp.W,smp.H,{sample:true,ground:smp.ground,wall:smp.wall,lens:26});simg.src=smp.url;
+</script>
