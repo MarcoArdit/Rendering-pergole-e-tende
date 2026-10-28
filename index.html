@@ -118,9 +118,10 @@ select{width:100%;font:500 .95rem var(--f-body);color:var(--ink);background:var(
   <aside class="panel" id="panel">
     <section class="sec"><h2>Prodotto</h2><div id="prods" class="fam"></div><p class="note" id="pnote"></p></section>
     <section class="sec"><h2>Posizione sulla foto</h2>
+      <div class="seg" id="method" role="group" aria-label="Metodo"><button type="button" data-m="linee">Linee (come SketchUp)</button><button type="button" data-m="punti">4 punti a terra</button></div>
       <div class="hint" id="howto"></div>
       <div class="warnline" id="poseWarn" hidden></div>
-      <div class="seg"><button type="button" id="resetPts">Rimetti i punti al centro</button><button type="button" id="togglePts" aria-pressed="true">Punti visibili</button></div>
+      <div class="seg"><button type="button" id="resetPts">Rimetti al centro</button><button type="button" id="togglePts" aria-pressed="true">Punti visibili</button></div>
     </section>
     <section class="sec"><h2>Misure e movimento</h2><div id="ctrls" style="display:grid;gap:14px"></div></section>
     <section class="sec"><h2>Colori</h2><div id="colors" style="display:grid;gap:10px"></div></section>
@@ -139,7 +140,7 @@ select{width:100%;font:500 .95rem var(--f-body);color:var(--ink);background:var(
       <div class="seg"><button class="btn" type="button" id="arBtn">Prepara il modello AR</button><a class="btn primary" id="arOpen" rel="ar" hidden><img alt="" width="1" height="1" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">Apri in AR</a></div>
       <p class="note" id="arNote">Apre il prodotto in scala reale con la fotocamera dell'iPhone. Funziona quando l'app è pubblicata sul tuo sito.</p>
     </section>
-    <section class="sec"><p class="note">Modelli indicativi ricavati dalle brochure Dirello (rev. 04.2025): sezioni di gronde, pilastri e lame sono quelle dichiarate, i dettagli sono semplificati. I colori a schermo sono approssimati: per la scelta definitiva fa fede la mazzetta.</p></section>
+    <section class="sec"><p class="note">Modelli indicativi ricavati dalle brochure Dirello (rev. 04.2025) e dal listino Vesta 13.5: sezioni di gronde, pilastri e lame sono quelle dichiarate, i dettagli sono semplificati. I colori a schermo sono approssimati: per la scelta definitiva fa fede la mazzetta.</p></section>
   </aside>
 </div>
 
@@ -176,6 +177,25 @@ function solvePose(mode,W,L,pts,f,cx,cy){
  let X,Y,Z;if(mode==='ground'){X=P.r1;Y=P.r3.map(v=>-v);Z=P.r2;}else{X=P.r1;Y=P.r2;Z=P.r3;}
  const ok=Y[1]<0;const fl=v=>[v[0],-v[1],-v[2]];
  return{X:fl(X),Y:fl(Y),Z:fl(Z),T:fl(P.t),ok};}
+/* Metodo "linee" (tipo Match Photo): 2 linee orizzontali del muro (asse larghezza), 2 linee verticali, punti A e B a terra = larghezza W */
+const hc=(p)=>[p[0],p[1],1];
+function vanish(l1,l2){const a=vcross(vcross(hc(l1[0]),hc(l1[1])),vcross(hc(l2[0]),hc(l2[1])));return a;}
+function dirFromV(v,f,cx,cy){return vnorm([(v[0]-cx*v[2])/f,(v[1]-cy*v[2])/f,v[2]]);}
+function orientDir(d,P0,target,f,cx,cy){const P=[(P0[0]-cx)/f,(P0[1]-cy)/f,1],Q=P.map((x,i)=>x+.05*d[i]);
+ if(Q[2]<=0)return d.map(x=>-x);const q=[f*Q[0]/Q[2]+cx,f*Q[1]/Q[2]+cy];
+ return ((q[0]-P0[0])*target[0]+(q[1]-P0[1])*target[1])<0?d.map(x=>-x):d;}
+function solveLines(L,W,f,cx,cy){
+ let dx=dirFromV(vanish(L.r[0],L.r[1]),f,cx,cy),dy=dirFromV(vanish(L.b[0],L.b[1]),f,cx,cy);
+ if(![...dx,...dy].every(Number.isFinite))return null;
+ dx=orientDir(dx,L.A,[L.B[0]-L.A[0],L.B[1]-L.A[1]],f,cx,cy);dy=orientDir(dy,L.A,[0,-1],f,cx,cy);
+ const ang=Math.abs(dx[0]*dy[0]+dx[1]*dy[1]+dx[2]*dy[2]);
+ const c=vnorm(dx.map((v,i)=>v+dy[i])),e=vnorm(dx.map((v,i)=>v-dy[i]));
+ const r1=c.map((v,i)=>(v+e[i])/Math.SQRT2),r2=c.map((v,i)=>(v-e[i])/Math.SQRT2),r3=vcross(r1,r2);
+ const a=[(L.A[0]-cx)/f,(L.A[1]-cy)/f,1],b=[(L.B[0]-cx)/f,(L.B[1]-cy)/f,1],dot=(u,v)=>u[0]*v[0]+u[1]*v[1]+u[2]*v[2];
+ const aa=dot(a,a),ab=dot(a,b),bb=dot(b,b),ar=W*dot(a,r1),br=W*dot(b,r1),det=aa*bb-ab*ab;if(Math.abs(det)<1e-12)return null;
+ const lam=(-ar*bb+ab*br)/det;if(!(lam>0))return null;
+ const t=a.map((v,i)=>lam*v+W/2*r1[i]);const fl=v=>[v[0],-v[1],-v[2]];
+ return{X:fl(r1),Y:fl(r2),Z:fl(r3),T:fl(t),ok:ang<.3,ang};}
 
 
 // Cataloghi colori (dalle brochure Dirello rev.001 04.2025) — tinte indicative a schermo
@@ -193,6 +213,24 @@ const FAB = [
   ['2148C','Soltis Proof 502 · Cacao','#6A5446'],['2047','Soltis W96 · Antracite','#3F4245'],
   ['819','Opatex Pro · Tortora','#8E8173'],['632','Opatex Pro · Verde','#3E5A49'],['444','Opatex Pro · Bordeaux','#6A2A33']];
 const GLASS = [['chiaro','Chiaro'],['satinato','Chiaro satinato'],['bronzo','Bronzo'],['grigio','Grigio'],['riflettente','Riflettente']];
+
+
+// Colori armatura Vesta (listino 13.5) e tessuti acrilici indicativi
+const VESTA = [['9010','Bianco Vesta 9010','#F1ECE1'],['1013','Avorio Vesta 1013','#E3D9C6'],['9006','Grigio Vesta 9006','#A5A8A6'],['ALU301M','Antracite Vesta ALU301M','#3A3D40']];
+const VESTA_VQ = [['9016','Bianco Vesta 9016 TXT','#F1F0EA'],['9006','Grigio Vesta 9006 TXT','#A5A8A6'],['350','Corten Vesta 350','#7A4A33'],['ALU301M','Antracite Vesta ALU301M','#3A3D40']];
+const TFAB = [['ecru','Écru','#E9E1CF'],['bianco','Bianco','#F2F2EE'],['beige','Beige','#D3C3A3'],['sabbia','Sabbia','#C2B08F'],['grigio','Grigio perla','#A9A8A2'],
+  ['antracite','Antracite','#45484B'],['blu','Blu','#2F4A6B'],['verde','Verde bosco','#3C5A43'],['bordeaux','Bordeaux','#6B2A33'],['arancio','Arancio','#C8742F'],
+  ['rig-beige','Rigato beige / écru','#CDBB98','#EFE7D6'],['rig-grigio','Rigato grigio / bianco','#8E8E8A','#E9E8E3'],['rig-blu','Rigato blu / écru','#2F4A6B','#E9E6DD'],['rig-verde','Rigato verde / écru','#3C5A43','#E9E6DD']];
+const MANT = {k:'mant',l:'Mantovana (H 27 cm)',t:'sel',o:[['no','Senza mantovana'],['dritta','Dritta'],['ond','Ondulata']],d:'no'};
+const ARM_CTRL=(maxW,dW)=>[{k:'W',l:'Larghezza',t:'r',min:196,max:maxW,step:5,d:dW,u:'cm'},
+  {k:'D',l:'Sporgenza',t:'r',min:150,max:350,step:5,d:250,u:'cm'},
+  {k:'Hm',l:'Altezza attacco a muro',t:'r',min:200,max:450,step:5,d:280,u:'cm'},
+  {k:'inc',l:'Inclinazione',t:'r',min:5,max:60,step:1,d:25,u:'°'},
+  {k:'open',l:'Apertura tenda',t:'r',min:0,max:100,step:5,d:100,u:'%'}];
+const DROP_BASE=(maxW,maxH)=>[{k:'W',l:'Larghezza vano',t:'r',min:60,max:maxW,step:5,d:Math.min(200,maxW),u:'cm'},
+  {k:'H',l:'Altezza vano',t:'r',min:100,max:maxH,step:5,d:Math.min(230,maxH),u:'cm'}];
+const BOXSEL = {k:'box',l:'Cassonetto',t:'sel',o:[['Q','BOX-Q (quadro)'],['T','BOX-T (tondo)'],['AIR','AIR (senza cassonetto)']],d:'Q'};
+const DROPPCT = {k:'drop',l:'Discesa telo',t:'r',min:0,max:100,step:5,d:75,u:'%'};
 
 const ZIP = [
   {k:'zipF',l:'Chiusura ZIP frontale',t:'chk',d:false},
@@ -300,6 +338,53 @@ const PRODUCTS = [
    {k:'H',l:'Altezza vano',t:'r',min:180,max:250,step:5,d:240,u:'cm'},
    {k:'ap',l:'Apertura',t:'sel',o:[['sx','Laterale, raccolta a sinistra'],['dx','Laterale, raccolta a destra'],['c','Centrale']],d:'sx'},
    {k:'open',l:'Ante aperte',t:'r',min:0,max:100,step:5,d:0,u:'%'}]}
+,
+{id:'pegaso',name:'Pegaso',fam:'Tende a bracci · Vesta',calib:'ground',kind:'arm',colors:VESTA,
+  note:'Bracci estensibili su barra quadra 40 × 40 · larghezza 208–1400 · sporgenza 150–350 · classe vento 1',
+  spec:{box:null},
+  ctrl:[...ARM_CTRL(1400,400),{k:'arms',l:'Numero bracci',t:'sel',o:[['0','Automatico'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6']],d:'0'},
+   {...MANT,d:'ond'},{k:'tett',l:'Tettuccio di protezione',t:'chk',d:false}]},
+ {id:'ermes',name:'Ermes',fam:'Tende a bracci · Vesta',calib:'ground',kind:'arm',colors:VESTA,
+  note:'Cassonetto a scomparsa totale, linee arrotondate · larghezza 196–520 · sporgenza 150–350',
+  spec:{box:'round'},
+  ctrl:[...ARM_CTRL(520,400),MANT]},
+ {id:'vqube',name:'V-Qube',fam:'Tende a bracci · Vesta',calib:'ground',kind:'arm',colors:VESTA_VQ,
+  note:'Cassonetto squadrato, LED opzionali nei bracci · larghezza 196–600 · sporgenza 150–350 · solo motore',
+  spec:{box:'square'},
+  ctrl:[...ARM_CTRL(600,400),MANT,{k:'led',l:'LED nei bracci',t:'chk',d:false},{k:'tett',l:'Tettuccio tra cassonetto e parete',t:'chk',d:false}]},
+ {id:'milos',name:'Milos',fam:'Tende a caduta · Vesta',calib:'wall',kind:'drop',colors:VESTA,
+  note:'Caduta libera con ganci di ancoraggio · larghezza max 520 · altezza max 300 · versione BOX o AIR',
+  spec:{maxH:3.0,guide:'none',boxType:'milos'},
+  ctrl:[...DROP_BASE(520,300),{k:'box',l:'Versione',t:'sel',o:[['milos','BOX (con cassonetto)'],['AIR','AIR (senza cassonetto)']],d:'milos'},DROPPCT,
+   {k:'brac',l:'Braccetti a ringhiera 50 cm',t:'chk',d:false},MANT]},
+ {id:'ttp1',name:'TTP1',fam:'Tende a caduta · Vesta',calib:'wall',kind:'drop',colors:VESTA,
+  note:'Caduta con bracci di rotazione fino a 160° · cassonetto 13 × 15 · larghezza max 400 · braccetti 80–160',
+  spec:{maxH:3.5,guide:'arms',boxType:'ttp'},
+  ctrl:[...DROP_BASE(400,350),{k:'Lb',l:'Lunghezza braccetti',t:'r',min:80,max:160,step:5,d:100,u:'cm'},
+   {k:'ang',l:'Apertura braccetti',t:'r',min:0,max:160,step:5,d:70,u:'°'},MANT]},
+ {id:'ardesia',name:'Ardesia',fam:'Tende a caduta · Vesta',calib:'wall',kind:'drop',colors:VESTA,
+  note:'Futura System, caduta libera con ganci e occhioli · larghezza max 520 · altezza max 350',
+  spec:{maxH:3.5,guide:'none'},ctrl:[...DROP_BASE(520,350),BOXSEL,DROPPCT,MANT]},
+ {id:'pangea',name:'Pangea',fam:'Tende a caduta · Vesta',calib:'wall',kind:'drop',colors:VESTA,
+  note:'Futura System, guidata con cavi inox Ø 4 mm · larghezza max 520 · altezza max 350',
+  spec:{maxH:3.5,guide:'cable'},ctrl:[...DROP_BASE(520,350),BOXSEL,DROPPCT,MANT]},
+ {id:'nausica',name:'Nausica',fam:'Tende a caduta · Vesta',calib:'wall',kind:'drop',colors:VESTA,
+  note:'Futura System, guide laterali in alluminio, inclinabile fino a 10° · larghezza max 520 · altezza max 350',
+  spec:{maxH:3.5,guide:'rail'},ctrl:[...DROP_BASE(520,350),BOXSEL,DROPPCT,{k:'incl',l:'Inclinazione verso l\'esterno',t:'r',min:0,max:10,step:1,d:0,u:'°'},MANT]},
+ {id:'ermione',name:'Ermione',fam:'Tende a caduta · Vesta',calib:'wall',kind:'drop',colors:VESTA,
+  note:'Futura System, guide laterali con braccetti da 60 cm · larghezza max 520 · altezza max 350',
+  spec:{maxH:3.5,guide:'railarms'},ctrl:[...DROP_BASE(520,350),BOXSEL,{k:'ang',l:'Apertura braccetti',t:'r',min:0,max:150,step:5,d:60,u:'°'},MANT]},
+ {id:'bali',name:'Bali',fam:'Cappottine · Vesta',calib:'wall',kind:'hood',colors:VESTA,
+  note:'Cappottina richiudibile, centine 50 × 15 · larghezza 80–700 · sporgenza max 110 (4 raggi) o 180 (5 raggi)',
+  spec:{maxH:4,sb:false},
+  ctrl:[{k:'W',l:'Larghezza',t:'r',min:80,max:700,step:5,d:180,u:'cm'},{k:'D',l:'Sporgenza',t:'r',min:80,max:180,step:5,d:100,u:'cm'},
+   {k:'H',l:'Altezza finestra',t:'r',min:80,max:300,step:5,d:150,u:'cm'},{k:'open',l:'Apertura',t:'r',min:0,max:100,step:5,d:100,u:'%'},{...MANT,d:'ond'}]},
+ {id:'balisb',name:'Bali SB',fam:'Cappottine · Vesta',calib:'wall',kind:'hood',colors:VESTA,
+  note:'Cappottina con prolunga a sbalzo, ingombro ridotto · larghezza 90–600 · sporgenza max 180 (5 raggi)',
+  spec:{maxH:4,sb:true},
+  ctrl:[{k:'W',l:'Larghezza',t:'r',min:90,max:600,step:5,d:180,u:'cm'},{k:'D',l:'Sporgenza',t:'r',min:90,max:180,step:5,d:120,u:'cm'},
+   {k:'H',l:'Altezza finestra / passaggio',t:'r',min:80,max:300,step:5,d:210,u:'cm'},{k:'open',l:'Apertura',t:'r',min:0,max:100,step:5,d:100,u:'%'},{...MANT,d:'ond'}]}
+
 ];
 
 function makeModels(THREE, RoundedBoxGeometry){
@@ -386,6 +471,37 @@ function makeModels(THREE, RoundedBoxGeometry){
     return cells;
   }
 
+
+  // telo generico con UV (u = x / 24 cm, per le righe): rows = [{y,z}] lungo il telo, larghezza x0..x1
+  function sheet(g,x0,x1,rows,mat,xs){const pos=[],uv=[],idx=[];const cols=xs||[x0,x1];let len=0;
+    rows.forEach((r,i)=>{if(i)len+=Math.hypot(r.y-rows[i-1].y,r.z-rows[i-1].z);
+      cols.forEach(x=>{pos.push(x,r.y,r.z);uv.push(x/.24,len/.24);});
+      if(i){const c=cols.length,a=(i-1)*c,b=i*c;for(let k=0;k<c-1;k++)idx.push(a+k,a+k+1,b+k,a+k+1,b+k+1,b+k);}});
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();
+    const o=new THREE.Mesh(geo,mat);o.castShadow=o.receiveShadow=true;g.add(o);return o;}
+  // mantovana H 27 cm appesa sotto un profilo frontale (piano verticale a z costante)
+  function valance(g,x0,x1,y,z,style,mat){if(!style||style==='no')return;const h=.27,n=Math.max(2,Math.round((x1-x0)/.2));
+    const pos=[],uv=[],idx=[];const N=n*8;
+    for(let i=0;i<=N;i++){const x=x0+(x1-x0)*i/N;let b=h;
+      if(style==='ond'){const t=(i%8)/8;b=h-.07+.07*Math.sin(Math.PI*t);}
+      pos.push(x,y,z,x,y-b,z);uv.push(x/.24,0,x/.24,b/.24);
+      if(i){const a=(i-1)*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();
+    const o=new THREE.Mesh(geo,mat);o.castShadow=true;g.add(o);}
+  function cyl(g,r,a,b,mat,seg=16){const L=a.distanceTo(b);const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,seg),mat);
+    o.position.copy(a).add(b).multiplyScalar(.5);const d=b.clone().sub(a).normalize();o.quaternion.setFromUnitVectors(V(0,1,0),d);
+    o.castShadow=o.receiveShadow=true;g.add(o);return o;}
+  // cassonetto lungo x, profilo in sezione (y,z) dato come Shape
+  function profileBar(g,shape,x0,x1,mat){const geo=new THREE.ExtrudeGeometry(shape,{depth:x1-x0,bevelEnabled:false,curveSegments:10});
+    const o=new THREE.Mesh(geo,mat);o.rotation.y=Math.PI/2;o.position.x=x0;o.castShadow=o.receiveShadow=true;g.add(o);return o;}
+  // Shape in coordinate (z,y): dopo rotation.y=+90° la x della shape diventa -z, quindi uso -z
+  function shapeZY(pts){const s=new THREE.Shape();pts.forEach(([z,y],i)=>i?s.lineTo(-z,y):s.moveTo(-z,y));return s;}
+  function roundedRectZY(z0,z1,y0,y1,r){const s=new THREE.Shape(),a=-z1,b=-z0;
+    s.moveTo(a+r,y0);s.lineTo(b-r,y0);s.quadraticCurveTo(b,y0,b,y0+r);s.lineTo(b,y1-r);s.quadraticCurveTo(b,y1,b-r,y1);
+    s.lineTo(a+r,y1);s.quadraticCurveTo(a,y1,a,y1-r);s.lineTo(a,y0+r);s.quadraticCurveTo(a,y0,a+r,y0);return s;}
+
   function build(prod,p,M,inst=true){
     const g=new THREE.Group(),cm=v=>v/100;let ext;
     if(prod.kind==='bio'){const s=prod.spec,W=cm(p.W),D=cm(p.D),Hs=cm(p.Hs),au=p.ver==='AU';
@@ -459,6 +575,80 @@ function makeModels(THREE, RoundedBoxGeometry){
             const gk=new THREE.Mesh(rgeo(.008,ph,.012),M.gasket);gk.position.set(x+pw/2-.004,y,z);g.add(gk);}
         }});
       ext={W,D:depth,H};}
+
+    else if(prod.kind==='arm'){const s=prod.spec,W=cm(p.W),D=cm(p.D),Hm=cm(p.Hm),a=p.inc*Math.PI/180,e=(p.open??100)/100;
+      const nA=+p.arms||(W<=7.0?2:W<=10.5?3:4);
+      const zr=s.box?.13:.15,yr=Hm;
+      if(s.box==='round'){ // Ermes: cassonetto arrotondato 28 x 20
+        const sh=new THREE.Shape();sh.moveTo(0,yr+.1);sh.lineTo(-.05,yr+.1);sh.quadraticCurveTo(-.27,yr+.1,-.28,yr-.02);sh.lineTo(-.24,yr-.1);sh.lineTo(0,yr-.1);sh.lineTo(0,yr+.1);
+        profileBar(g,sh,-W/2,W/2,M.frame);}
+      else if(s.box==='square'){ // V-Qube: cassonetto squadrato con faccia inclinata
+        profileBar(g,shapeZY([[.02,yr-.1],[.02,yr+.11],[.2,yr+.11],[.27,yr+.02],[.27,yr-.1]]),-W/2,W/2,M.frame);
+        if(p.led)box(g,W-.1,.006,.02,0,yr-.1-.003,.2,M.led);}
+      else{ // Pegaso: barra quadra 40x40, rullo Ø 80, supporti
+        box(g,W,.04,.04,0,yr-.2,.06,M.frame);
+        cyl(g,.04,V(-W/2+.06,yr,zr),V(W/2-.06,yr,zr),M.roller);
+        [-W/2+.05,W/2-.05].forEach(x=>box(g,.03,.14,.16,x,yr-.04,.1,M.frame));}
+      if(p.tett){const t=box(g,W+.04,.02,s.box?.12:.32,0,yr+(s.box?.12:.1),s.box?.07:.16,M.frame);t.rotation.x=.12;}
+      const F0=V(0,yr-.035,zr+.03),dir=V(0,-Math.sin(a),Math.cos(a)),Lf=Math.max(.001,D*e);
+      const Fb=F0.clone().addScaledVector(dir,Lf);
+      if(e>.02){sheet(g,-W/2+.04,W/2-.04,[{y:F0.y,z:F0.z},{y:F0.y+(Fb.y-F0.y)/2-.012*e,z:F0.z+(Fb.z-F0.z)/2},{y:Fb.y,z:Fb.z}],M.tfab);}
+      // frontale con grondaia
+      const fz=Fb.z+(s.box?.0:.0),fy=Fb.y-.02;
+      if(s.box==='square')box(g,W,.1,.07,0,fy-.02,fz+.02,M.frame);else if(s.box==='round'){const fb=box(g,W,.08,.075,0,fy-.01,fz+.02,M.frame);}
+      else box(g,W,.06,.063,0,fy,fz+.02,M.frame);
+      if(e>.05)valance(g,-W/2+.01,W/2-.01,fy-(s.box?.06:.03),fz+.055,p.mant,M.tfab);
+      // bracci a ginocchio
+      const L=D/2+.04;
+      for(let i=0;i<nA;i++){const t=nA===1?.5:i/(nA-1),x=-W/2+.12+(W-.24)*t;
+        const S=V(x,yr-.15,s.box?.16:.09),E=V(x,fy-.03,fz-.01);const d=S.distanceTo(E),M2=S.clone().add(E).multiplyScalar(.5);
+        const side=x<0?1:-1,off=Math.sqrt(Math.max(0,L*L-(d/2)*(d/2)));
+        const K=M2.clone();K.x+=side*off;
+        beam(g,S,K,.045,.03,M.frame,V(0,1,0));beam(g,K,E,.04,.028,M.frame,V(0,1,0));
+        box(g,.06,.06,.06,K.x,K.y,K.z,M.frame);
+        if(p.led){beam(g,S.clone().add(V(0,-.02,0)),K.clone().add(V(0,-.02,0)),.012,.004,M.led);beam(g,K.clone().add(V(0,-.02,0)),E.clone().add(V(0,-.02,0)),.012,.004,M.led);}
+        if(!s.box)box(g,.08,.16,.06,x,yr-.17,.05,M.frame);}
+      ext={W,D:D*Math.cos(a)+.3,H:Hm+.2};}
+    else if(prod.kind==='drop'){const s=prod.spec,W=cm(p.W),H=cm(p.H),bx=p.box||s.boxType||'Q';
+      // cassonetto in alto, sopra il vano (y = H)
+      let zc,top=H;const x0=-W/2-.04,x1=W/2+.04;
+      if(bx==='Q'){profileBar(g,roundedRectZY(.01,.13,H,H+.12,.012),x0,x1,M.frame);zc=.09;}
+      else if(bx==='T'){const sh=new THREE.Shape();sh.moveTo(-.01,H);sh.lineTo(-.06,H);sh.absarc(-.07,H+.065,.065,-Math.PI/2*1.05,Math.PI/2,true);sh.lineTo(-.01,H+.13);sh.lineTo(-.01,H);profileBar(g,sh,x0,x1,M.frame);zc=.1;}
+      else if(bx==='milos'){profileBar(g,roundedRectZY(.01,.115,H,H+.105,.03),x0,x1,M.frame);zc=.085;}
+      else if(bx==='ttp'){profileBar(g,roundedRectZY(.01,.14,H,H+.13,.02),x0,x1,M.frame);zc=.11;}
+      else{cyl(g,.045,V(-W/2,H+.06,.08),V(W/2,H+.06,.08),M.tfab);[-W/2-.02,W/2+.02].forEach(x=>box(g,.025,.12,.12,x,H+.06,.065,M.frame));zc=.125;}
+      const zf=zc;const guide=s.guide;let bottomY,barZ=zf,rows;
+      if(guide==='arms'||guide==='railarms'){const La=guide==='arms'?cm(p.Lb):.6,th=p.ang*Math.PI/180;
+        const yp=guide==='arms'?Math.min(H-.1,La):.6; // perno bracci
+        const P=V(0,yp,zf),Bb=V(0,yp-La*Math.cos(th),zf+La*Math.sin(th));
+        rows=guide==='arms'?[{y:H,z:zf},{y:Bb.y,z:Bb.z}]:[{y:H,z:zf},{y:yp,z:zf},{y:Bb.y,z:Bb.z}];
+        [-W/2-.01,W/2+.01].forEach(x=>{beam(g,V(x,yp,zf),V(x,Bb.y,Bb.z),.025,.02,M.frame,V(1,0,0));box(g,.04,.08,.03,x,yp,.015,M.frame);
+          if(guide==='railarms')box(g,.04,H-yp,.02,x,(H+yp)/2,zf,M.frame);});
+        bottomY=Bb.y;barZ=Bb.z;}
+      else{const e=(p.drop??75)/100,inc=(p.incl||0)*Math.PI/180;bottomY=H-(H-.05)*e;barZ=zf+(H-bottomY)*Math.tan(inc);rows=[{y:H,z:zf},{y:bottomY,z:barZ}];
+        if(guide==='cable')[-W/2+.02,W/2-.02].forEach(x=>{cyl(g,.003,V(x,H,zf),V(x,0,zf+H*Math.tan(inc)),M.cable,6);box(g,.03,.03,.04,x,.015,zf,M.frame);});
+        if(guide==='rail')[-W/2-.005,W/2+.005].forEach(x=>{beam(g,V(x,H,zf),V(x,0,zf+H*Math.tan(inc)),.04,.02,M.frame,V(0,0,1));box(g,.07,.02,.07,x,.01,zf+H*Math.tan(inc),M.frame);});
+        if(p.brac&&e>.3){[-W/2+.03,W/2-.03].forEach(x=>beam(g,V(x,bottomY,.02),V(x,bottomY,.5),.025,.02,M.frame));barZ=.5;rows=[{y:H,z:zf},{y:bottomY,z:.5}];}}
+      if(H-bottomY>.02)sheet(g,-W/2+.01,W/2-.01,rows,M.tfab);
+      box(g,W,.045,.03,0,bottomY-.02,barZ,M.frame);
+      valance(g,-W/2,W/2,bottomY-.04,barZ+.016,p.mant,M.tfab);
+      ext={W,D:.6,H:H+.15};}
+    else if(prod.kind==='hood'){const W=cm(p.W),D=cm(p.D),H=cm(p.H),o=Math.max(.04,(p.open??100)/100),sb=prod.spec.sb;
+      const tbl=[[90,81],[100,102],[110,104],[120,124],[130,134],[140,144],[150,154],[160,159],[180,179]];
+      const interp=d=>{for(let i=1;i<tbl.length;i++)if(d<=tbl[i][0]){const[a,b]=tbl[i-1],[c,e]=tbl[i];return(b+(e-b)*(d-a)/(c-a))/100;}return tbl[tbl.length-1][1]/100;};
+      const Hc=sb?interp(p.D):D*.95,n=(sb||p.D>110)?5:4,top=H+.12,y0=top-Hc,ex=sb?1.35:2;
+      const prof=f=>{const c=Math.cos(f),s=Math.sin(f);return{z:D*Math.pow(s,2/ex),y:y0+Hc*Math.pow(c,2/ex)};};
+      const fmax=Math.PI/2*o,N=28,rows=[];for(let i=0;i<=N;i++)rows.push(prof(fmax*i/N));
+      sheet(g,-W/2,W/2,rows,M.tfab);
+      [-W/2,W/2].forEach(x=>{const pos=[x,y0,0],uv=[0,0],idx=[];rows.forEach((r,i)=>{pos.push(x,r.y,r.z);uv.push(r.z/.24,(r.y-y0)/.24);if(i)idx.push(0,i,i+1);});
+        const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+        geo.setIndex(idx);geo.computeVertexNormals();const o2=new THREE.Mesh(geo,M.tfab);o2.castShadow=true;g.add(o2);
+        box(g,.05,.08,.02,x,y0,.01,M.frame);});
+      for(let k=0;k<n;k++){const f=fmax*k/(n-1),P=prof(f);
+        box(g,W+.01,.05,.015,0,P.y,P.z+.005,M.frame);
+        if(k>0)[-W/2-.008,W/2+.008].forEach(x=>beam(g,V(x,y0,.01),V(x,P.y,P.z),.015,.035,M.frame,V(1,0,0)));}
+      const Pf=prof(fmax);if(o>.6)valance(g,-W/2,W/2,Pf.y-.01,Pf.z+.012,p.mant,M.tfab);
+      ext={W,D,H:top};}
     return {group:g,ext};
   }
   function clearCaches(){geoCache.forEach(g=>g.dispose());geoCache.clear();bladeCache.forEach(g=>g.dispose());bladeCache.clear();}
@@ -477,8 +667,8 @@ const MOD=makeModels(THREE,RoundedBoxGeometry);
 const LS={get(k,d){try{const v=localStorage.getItem('rp_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('rp_'+k,JSON.stringify(v))}catch(e){}}};
 
 /* ---------- stato ---------- */
-const S={prod:LS.get('prod','diesisO'),params:{},ral:LS.get('ral','7016'),fab:LS.get('fab','503'),glass:LS.get('glass','chiaro'),
-  lens:26,az:-40,el:50,exp:100,sh:45,wallSh:true,showPts:true,photo:null,pts:{ground:null,wall:null},pose:null};
+const S={prod:LS.get('prod','diesisO'),params:{},ral:LS.get('ral','7016'),vcol:LS.get('vcol','9010'),tfab:LS.get('tfab','ecru'),fab:LS.get('fab','503'),glass:LS.get('glass','chiaro'),
+  lens:26,az:-40,el:50,exp:100,sh:45,wallSh:true,showPts:true,photo:null,pts:{ground:null,wall:null},pose:null,method:'linee',lines:null};
 const saved=LS.get('params',{});
 PRODUCTS.forEach(pr=>{const p={};pr.ctrl.forEach(c=>p[c.k]=c.d);S.params[pr.id]=Object.assign(p,saved[pr.id]||{});});
 if(!PRODUCTS.find(p=>p.id===S.prod))S.prod='diesisO';
@@ -504,15 +694,25 @@ let modelGroup=null;
 const grain=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),d=x.createImageData(128,128);
   for(let i=0;i<d.data.length;i+=4){const v=118+Math.random()*20;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255;}x.putImageData(d,0,0);
   const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(6,6);return t;})();
-function frameMat(code){const r=RAL.find(r=>r[0]===code)||RAL[16],met=code==='9006';
+const ALLCOL=[...RAL,...VESTA,...VESTA_VQ];
+const curCol=pr=>pr.colors?(pr.colors.find(c=>c[0]===S.vcol)||pr.colors[0])[0]:S.ral;
+function frameMat(code){const r=ALLCOL.find(r=>r[0]===code)||RAL[16],met=code==='9006';
   return new THREE.MeshStandardMaterial({color:new THREE.Color(r[2]),roughness:met?.38:.62,metalness:met?.75:.12,bumpMap:grain,bumpScale:met?.2:.6,envMapIntensity:.7});}
 function glassMat(k){const base={metalness:0,roughness:.03,transparent:true,depthWrite:false,envMapIntensity:1.4,side:THREE.DoubleSide};
   const t={chiaro:{color:'#CFE3DE',opacity:.16},satinato:{color:'#EEF2F1',opacity:.62,roughness:.55},bronzo:{color:'#7E6046',opacity:.36},
     grigio:{color:'#4F575B',opacity:.4},riflettente:{color:'#9EADB4',opacity:.72,metalness:.85,roughness:.06}}[k];
   return new THREE.MeshStandardMaterial(Object.assign(base,t,{color:new THREE.Color(t.color)}));}
-function materials(){const f=FAB.find(f=>f[0]===S.fab)||FAB[0];
+function tfabMat(){const f=TFAB.find(f=>f[0]===S.tfab)||TFAB[0];
+  const o={roughness:.9,metalness:0,side:THREE.DoubleSide,envMapIntensity:.35};
+  if(f[3]){const c=document.createElement('canvas');c.width=64;c.height=4;const x=c.getContext('2d');x.fillStyle=f[2];x.fillRect(0,0,32,4);x.fillStyle=f[3];x.fillRect(32,0,32,4);
+    const tx=new THREE.CanvasTexture(c);tx.colorSpace=THREE.SRGBColorSpace;tx.wrapS=tx.wrapT=THREE.RepeatWrapping;tx.anisotropy=4;o.map=tx;o.color=new THREE.Color(0xffffff);}
+  else o.color=new THREE.Color(f[2]);
+  return new THREE.MeshStandardMaterial(o);}
+function materials(){const f=FAB.find(f=>f[0]===S.fab)||FAB[0];const fc=curCol(prod());
   const fabric=new THREE.MeshStandardMaterial({color:new THREE.Color(f[2]),roughness:.92,metalness:0,side:THREE.DoubleSide,envMapIntensity:.4});
-  return {frame:frameMat(S.ral),blade:frameMat(S.ral),fabric,
+  return {frame:frameMat(fc),blade:frameMat(fc),fabric,tfab:tfabMat(),
+    roller:new THREE.MeshStandardMaterial({color:0xB9BCBE,roughness:.4,metalness:.6}),
+    cable:new THREE.MeshStandardMaterial({color:0xC9CDD0,roughness:.25,metalness:.9}),
     zip:new THREE.MeshStandardMaterial({color:new THREE.Color(f[2]),roughness:.95,transparent:true,opacity:.86,side:THREE.DoubleSide,envMapIntensity:.3}),
     led:new THREE.MeshStandardMaterial({color:0xFFE7B8,emissive:0xFFD38A,emissiveIntensity:2.2}),
     support:new THREE.MeshStandardMaterial({color:0xA9A39A,roughness:.8}),
@@ -526,7 +726,7 @@ function rebuild(){
   const pr=prod(),r=MOD.build(pr,S.params[pr.id],MATS,true);modelGroup=r.group;root.add(modelGroup);S.ext=r.ext;
   const {W,D,H}=r.ext,ground=pr.calib==='ground';
   groundSh.scale.set(W+6,ground?D+6:5,1);groundSh.position.set(0,.002,ground?D/2:1.2);
-  const wallOn=ground&&S.wallSh&&!(S.params[pr.id].ver==='AU')&&pr.kind!=='sky';
+  const wallOn=S.wallSh&&((ground&&!(S.params[pr.id].ver==='AU')&&pr.kind!=='sky')||pr.kind==='drop'||pr.kind==='hood');
   wallSh.visible=wallOn;wallSh.scale.set(W+3,H+1.2,1);wallSh.position.set(0,(H+1.2)/2,.003);
   updateLight();solve();const ar=$('arOpen');if(ar&&!ar.hidden){ar.hidden=true;}
 }
@@ -550,26 +750,55 @@ new ResizeObserver(layout).observe(stage);
 function defaultPts(mode,w,h){return mode==='ground'?[[.3*w,.6*h],[.7*w,.6*h],[.84*w,.88*h],[.16*w,.88*h]]:[[.3*w,.78*h],[.7*w,.78*h],[.7*w,.36*h],[.3*w,.36*h]];}
 const mode=()=>prod().calib;
 const LABELS={ground:['Muro sx','Muro dx','Pilastro dx','Pilastro sx'],wall:['Basso sx','Basso dx','Alto dx','Alto sx']};
-function drawHandles(){if(!S.photo)return;const pts=S.pts[mode()],r=13/disp.s,sw=2/disp.s,lbl=LABELS[mode()];
+function drawPts(){const pts=S.pts[mode()],r=13/disp.s,sw=2/disp.s,lbl=LABELS[mode()];
   const poly=pts.map(p=>p.join(',')).join(' ');const cx=pts.reduce((a,p)=>a+p[0],0)/4,cy=pts.reduce((a,p)=>a+p[1],0)/4;
-  svg.innerHTML=S.showPts?`<polygon points="${poly}" fill="rgba(110,167,209,.10)" stroke="#fff" stroke-width="${sw}" stroke-dasharray="${6/disp.s} ${5/disp.s}"/>
+  svg.innerHTML=`<polygon points="${poly}" fill="rgba(110,167,209,.10)" stroke="#fff" stroke-width="${sw}" stroke-dasharray="${6/disp.s} ${5/disp.s}"/>
    <g class="h" data-i="c" transform="translate(${cx},${cy})"><circle r="${r*1.25}" fill="rgba(20,26,30,.55)" stroke="#fff" stroke-width="${sw}"/>
     <path d="M${-r*.7} 0H${r*.7}M0 ${-r*.7}V${r*.7}" stroke="#fff" stroke-width="${sw}"/></g>`+
    pts.map((p,i)=>`<g class="h" data-i="${i}" transform="translate(${p[0]},${p[1]})"><circle r="${r*1.9}" fill="transparent"/><circle r="${r}" fill="#2B6893" stroke="#fff" stroke-width="${sw*1.2}"/>
     <text y="${r*.36}" text-anchor="middle" font-size="${r*1.05}" font-family="IBM Plex Mono,monospace" fill="#fff">${i+1}</text>
-    <text y="${-r*1.5}" text-anchor="middle" font-size="${r*.95}" font-family="Barlow,sans-serif" font-weight="600" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width="${r*.22}" paint-order="stroke">${lbl[i]}</text></g>`).join(''):'';}
+    <text y="${-r*1.5}" text-anchor="middle" font-size="${r*.95}" font-family="Barlow,sans-serif" font-weight="600" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width="${r*.22}" paint-order="stroke">${lbl[i]}</text></g>`).join('');}
+/* metodo linee (come Match Photo di SketchUp) */
+const LCOL={r:'#E5533C',b:'#3B8EE6',y:'#F2B33D'};
+const isLines=()=>S.method==='linee';
+function defaultLines(w,h){return{r:[[[.3*w,.42*h],[.7*w,.42*h]],[[.3*w,.58*h],[.7*w,.58*h]]],b:[[[.22*w,.35*h],[.22*w,.72*h]],[[.78*w,.35*h],[.78*w,.72*h]]],A:[.32*w,.84*h],B:[.68*w,.84*h]};}
+const cloneLines=L=>JSON.parse(JSON.stringify(L));
+function extd(p,q,k){const dx=q[0]-p[0],dy=q[1]-p[1];return[[p[0]-dx*k,p[1]-dy*k],[q[0]+dx*k,q[1]+dy*k]];}
+function lineItems(){const L=S.lines,items=[],segs=[];
+  ['r','b'].forEach(c=>L[c].forEach((s,j)=>{segs.push({k:c+j,a:s[0],b:s[1],c:LCOL[c]});
+    items.push({k:`${c}:${j}:0`,p:s[0],c:LCOL[c]},{k:`${c}:${j}:1`,p:s[1],c:LCOL[c]},{k:`${c}:${j}:m`,p:[(s[0][0]+s[1][0])/2,(s[0][1]+s[1][1])/2],c:LCOL[c],mid:1});}));
+  segs.push({k:'ab',a:L.A,b:L.B,c:LCOL.y,ab:1});
+  items.push({k:'A',p:L.A,c:LCOL.y,lab:'Inizio'},{k:'B',p:L.B,c:LCOL.y,lab:'Fine'});return{items,segs};}
+function drawLines(){const r=11/disp.s,sw=2.2/disp.s,{items,segs}=lineItems();
+  svg.innerHTML=segs.map(s=>{const [e1,e2]=extd(s.a,s.b,4);
+    return (s.ab?'':`<line data-x="${s.k}" x1="${e1[0]}" y1="${e1[1]}" x2="${e2[0]}" y2="${e2[1]}" stroke="${s.c}" stroke-opacity=".5" stroke-width="${sw*.6}" stroke-dasharray="${8/disp.s} ${6/disp.s}"/>`)+
+    `<line data-s="${s.k}" x1="${s.a[0]}" y1="${s.a[1]}" x2="${s.b[0]}" y2="${s.b[1]}" stroke="${s.c}" stroke-width="${s.ab?sw:sw*1.5}"${s.ab?` stroke-dasharray="${5/disp.s} ${4/disp.s}"`:''}/>`;}).join('')+
+   items.map(it=>`<g class="h" data-i="${it.k}" transform="translate(${it.p[0]},${it.p[1]})"><circle r="${r*2}" fill="transparent"/>`+
+    (it.mid?`<rect x="${-r*.55}" y="${-r*.55}" width="${r*1.1}" height="${r*1.1}" fill="${it.c}" stroke="#fff" stroke-width="${sw*.8}" transform="rotate(45)"/>`
+    :it.lab?`<circle r="${r*1.1}" fill="${it.c}" stroke="#fff" stroke-width="${sw}"/><text y="${-r*1.7}" text-anchor="middle" font-size="${r*1.1}" font-family="Barlow,sans-serif" font-weight="600" fill="#fff" stroke="rgba(0,0,0,.6)" stroke-width="${r*.22}" paint-order="stroke">${it.lab}</text>`
+    :`<circle r="${r*.75}" fill="${it.c}" stroke="#fff" stroke-width="${sw}"/>`)+`</g>`).join('');}
+function moveLines(){const {items,segs}=lineItems();
+  segs.forEach(s=>{const l=svg.querySelector(`[data-s="${s.k}"]`);if(l){l.setAttribute('x1',s.a[0]);l.setAttribute('y1',s.a[1]);l.setAttribute('x2',s.b[0]);l.setAttribute('y2',s.b[1]);}
+    const x=svg.querySelector(`[data-x="${s.k}"]`);if(x){const [e1,e2]=extd(s.a,s.b,4);x.setAttribute('x1',e1[0]);x.setAttribute('y1',e1[1]);x.setAttribute('x2',e2[0]);x.setAttribute('y2',e2[1]);}});
+  items.forEach(it=>svg.querySelector(`.h[data-i="${it.k}"]`)?.setAttribute('transform',`translate(${it.p[0]},${it.p[1]})`));}
+function drawHandles(){if(!S.photo)return;if(!S.showPts){svg.innerHTML='';return;}if(isLines())drawLines();else drawPts();}
 let drag=null;
 function moveHandles(){const pts=S.pts[mode()];const cx=pts.reduce((a,p)=>a+p[0],0)/4,cy=pts.reduce((a,p)=>a+p[1],0)/4;
   svg.querySelector('polygon')?.setAttribute('points',pts.map(p=>p.join(',')).join(' '));
   svg.querySelectorAll('.h').forEach(g=>{const i=g.dataset.i;g.setAttribute('transform',i==='c'?`translate(${cx},${cy})`:`translate(${pts[+i][0]},${pts[+i][1]})`);});}
 svg.addEventListener('pointerdown',e=>{const h=e.target.closest('.h');if(!h||!S.photo)return;e.preventDefault();
-  drag={id:e.pointerId,i:h.dataset.i,x:e.clientX,y:e.clientY,start:S.pts[mode()].map(p=>p.slice())};try{h.setPointerCapture(e.pointerId);}catch(err){}});
+  drag={id:e.pointerId,i:h.dataset.i,x:e.clientX,y:e.clientY,start:isLines()?cloneLines(S.lines):S.pts[mode()].map(p=>p.slice())};try{h.setPointerCapture(e.pointerId);}catch(err){}});
 window.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;
   if(e.pointerType==='mouse'&&e.buttons===0){drag=null;return;}
-  const dx=(e.clientX-drag.x)/disp.s,dy=(e.clientY-drag.y)/disp.s,pts=S.pts[mode()],{w,h}=S.photo;
-  const cl=(v,m)=>Math.max(-m*.25,Math.min(m*1.25,v));
-  if(drag.i==='c')drag.start.forEach((p,i)=>{pts[i]=[cl(p[0]+dx,w),cl(p[1]+dy,h)]});
-  else{const p=drag.start[+drag.i];pts[+drag.i]=[cl(p[0]+dx,w),cl(p[1]+dy,h)];}
+  const dx=(e.clientX-drag.x)/disp.s,dy=(e.clientY-drag.y)/disp.s,{w,h}=S.photo;
+  const cl=(v,m)=>Math.max(-m*.25,Math.min(m*1.25,v)),mv=p=>[cl(p[0]+dx,w),cl(p[1]+dy,h)];
+  if(isLines()){const L=S.lines,s=drag.start,k=drag.i;
+    if(k==='A')L.A=mv(s.A);else if(k==='B')L.B=mv(s.B);
+    else{const [c,j,e2]=k.split(':');if(e2==='m')L[c][+j]=s[c][+j].map(mv);else L[c][+j][+e2]=mv(s[c][+j][+e2]);}
+    moveLines();solve();return;}
+  const pts=S.pts[mode()];
+  if(drag.i==='c')drag.start.forEach((p,i)=>{pts[i]=mv(p)});
+  else{pts[+drag.i]=mv(drag.start[+drag.i]);}
   moveHandles();solve();});
 const endDrag=()=>{if(drag){drag=null;saveView();}};['pointerup','pointercancel','blur'].forEach(ev=>window.addEventListener(ev,endDrag));
 
@@ -577,10 +806,10 @@ function focalPx(){const {w,h}=S.photo;return Math.hypot(w,h)*S.lens/43.27;}
 function solve(){if(!S.photo||!S.ext)return;const pr=prod(),{w,h}=S.photo,f=focalPx(),m=pr.calib;
   const p=S.params[pr.id];const W=p.W/100,L=m==='ground'?(p.D/100):Math.min(p.H/100,pr.spec.maxH||9);
   camera.fov=2*Math.atan(h/2/f)*180/Math.PI;camera.aspect=w/h;camera.updateProjectionMatrix();
-  const r=solvePose(m,W,L,S.pts[m],f,w/2,h/2);const warn=$('poseWarn');
-  if(!r){root.visible=false;warn.hidden=false;warn.textContent='I punti si sovrappongono: allargali per ricostruire la prospettiva.';requestRender();return;}
+  const lin=isLines();const r=lin?solveLines(S.lines,W,f,w/2,h/2):solvePose(m,W,L,S.pts[m],f,w/2,h/2);const warn=$('poseWarn');
+  if(!r){root.visible=false;warn.hidden=false;warn.textContent=lin?'Con queste linee non riesco a ricostruire la prospettiva: allungale e allontanale tra loro, e controlla che Inizio e Fine siano a terra.':'I punti si sovrappongono: allargali per ricostruire la prospettiva.';requestRender();return;}
   root.visible=true;const {X,Y,Z,T}=r;root.matrix.set(X[0],Y[0],Z[0],T[0],X[1],Y[1],Z[1],T[1],X[2],Y[2],Z[2],T[2],0,0,0,1);root.matrixWorldNeedsUpdate=true;
-  warn.hidden=r.ok;if(!r.ok)warn.textContent=m==='ground'?'Il prodotto risulta capovolto: controlla che 1 e 2 siano sul muro e 3 e 4 verso di te.':'Il prodotto risulta capovolto: 1 e 2 vanno in basso, 3 e 4 in alto.';
+  warn.hidden=r.ok;if(!r.ok)warn.textContent=lin?'Le linee rosse e blu non risultano ad angolo retto: le rosse vanno su linee orizzontali del muro, le blu su linee verticali. Se sono giuste, prova a cambiare l\'obiettivo in "Foto e luce".':m==='ground'?'Il prodotto risulta capovolto: controlla che 1 e 2 siano sul muro e 3 e 4 verso di te.':'Il prodotto risulta capovolto: 1 e 2 vanno in basso, 3 e 4 in alto.';
   updateTip();requestRender();}
 
 let rq=false;function requestRender(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;renderer.render(scene,camera);});}
@@ -593,10 +822,19 @@ function buildProducts(){const fams=[...new Set(PRODUCTS.map(p=>p.fam))];
   $('prods').innerHTML=fams.map(f=>`<div class="fl">${f}</div><div class="chips">${PRODUCTS.filter(p=>p.fam===f).map(p=>`<button type="button" class="chip" data-id="${p.id}" aria-pressed="${p.id===S.prod}">${p.name}</button>`).join('')}</div>`).join('');
   $('prods').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{S.prod=b.dataset.id;LS.set('prod',S.prod);
     $('prods').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));onProduct();});}
+function howto(){const pr=prod(),gl=pr.kind==='glass'||pr.kind==='drop'||pr.kind==='hood',nm=pr.kind==='arm'?'tenda':gl?'vetrata':pr.fam==='Pergole a telo'?'copertura':'pergola';
+  const vano=pr.kind==='hood'?'della finestra sotto la cappottina':pr.kind==='drop'?'della finestra o del vano da coprire':'del vano';
+  document.querySelectorAll('#method button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===S.method));
+  $('howto').innerHTML=isLines()
+   ?`<ol><li>Sposta le due <b style="color:${LCOL.r}">linee rosse</b> su due linee orizzontali del muro (davanzali, architravi, gronda, zoccolo). Più sono lontane tra loro, meglio è.</li>
+     <li>Sposta le due <b style="color:${LCOL.b}">linee blu</b> su due linee verticali (spigoli della casa, stipiti di porte e finestre).</li>
+     <li>Metti i punti gialli <b>Inizio</b> e <b>Fine</b> ${gl?`negli angoli in basso ${vano}`:`a terra contro il muro, ${pr.kind==='arm'?'sotto gli estremi della tenda':`dove inizia e finisce la ${nm}`}`}: la distanza tra i due è la larghezza scritta sotto.</li>
+     <li>${pr.kind==='arm'?'Altezza di attacco e sporgenza':gl?'L\'altezza':'Altezza e sporgenza'} ${pr.kind==='arm'||!gl?'vengono':'viene'} dalle misure: non serve ${pr.kind!=='arm'&&gl?'indicarla':'indicarle'} sulla foto.</li></ol>`
+   :pr.calib==='ground'
+   ?`<ol><li>Trascina <b>1</b> e <b>2</b> a terra, contro il muro, dove inizia e finisce la ${nm}.</li><li>Trascina <b>3</b> e <b>4</b> a terra dove andranno i pilastri${pr.kind==='fly'||pr.kind==='sky'?' (o il bordo della copertura)':''}.</li><li>Sinistra e destra si intendono stando di fronte al muro, anche nella foto laterale.</li><li>Le misure sotto devono essere quelle vere: la prospettiva si ricava da lì.</li></ol>`
+   :`<ol><li>Trascina <b>1</b> e <b>2</b> negli angoli in basso ${vano}.</li><li>Trascina <b>3</b> e <b>4</b> negli angoli in alto.</li><li>Inserisci sotto larghezza e altezza vere del vano.</li></ol>`;}
 function onProduct(){const pr=prod();$('pnote').textContent=pr.note;
-  $('howto').innerHTML=pr.calib==='ground'
-   ?`<ol><li>Trascina <b>1</b> e <b>2</b> a terra, contro il muro, dove inizia e finisce la ${pr.kind==='glass'?'vetrata':'pergola'}.</li><li>Trascina <b>3</b> e <b>4</b> a terra dove andranno i pilastri${pr.kind==='fly'||pr.kind==='sky'?' (o il bordo della copertura)':''}.</li><li>Sinistra e destra si intendono stando di fronte al muro, anche nella foto laterale.</li><li>Le misure a destra devono essere quelle vere: la prospettiva si ricava da lì.</li></ol>`
-   :`<ol><li>Trascina <b>1</b> e <b>2</b> negli angoli in basso del vano da chiudere.</li><li>Trascina <b>3</b> e <b>4</b> negli angoli in alto.</li><li>Inserisci a destra larghezza e altezza vere del vano.</li></ol>`;
+  howto();
   buildCtrls();buildColors();if(S.photo&&!S.pts[pr.calib])S.pts[pr.calib]=defaultPts(pr.calib,S.photo.w,S.photo.h);drawHandles();rebuild();}
 function persist(){const o={};PRODUCTS.forEach(p=>o[p.id]=S.params[p.id]);LS.set('params',o);}
 let rbT=null;function soon(){clearTimeout(rbT);rbT=setTimeout(()=>{rebuild();persist();},60);}
@@ -612,11 +850,13 @@ function buildCtrls(){const pr=prod(),p=S.params[pr.id],box=$('ctrls');box.inner
       row.querySelector('input').onchange=e=>{p[c.k]=e.target.checked;buildCtrls();buildColors();soon();};}
     box.appendChild(row);});}
 function swatchRow(title,list,cur,key,label){const wrap=document.createElement('div');wrap.className='row';
-  wrap.innerHTML=`<div class="lab"><span>${title}</span></div><div class="sw">${list.map(r=>`<button type="button" style="background:${r[2]}" data-k="${r[0]}" aria-pressed="${r[0]===cur}" title="${label(r)}" aria-label="${label(r)}"></button>`).join('')}</div><div class="swname">${label(list.find(r=>r[0]===cur)||list[0])}</div>`;
+  wrap.innerHTML=`<div class="lab"><span>${title}</span></div><div class="sw">${list.map(r=>`<button type="button" style="background:${r[3]?`repeating-linear-gradient(90deg,${r[2]} 0 5px,${r[3]} 5px 10px)`:r[2]}" data-k="${r[0]}" aria-pressed="${r[0]===cur}" title="${label(r)}" aria-label="${label(r)}"></button>`).join('')}</div><div class="swname">${label(list.find(r=>r[0]===cur)||list[0])}</div>`;
   wrap.querySelectorAll('button').forEach(b=>b.onclick=()=>{S[key]=b.dataset.k;LS.set(key,S[key]);buildColors();rebuild();});return wrap;}
 function buildColors(){const pr=prod(),p=S.params[pr.id],box=$('colors');box.innerHTML='';
   const ralName=r=>(r[0].startsWith('F')?r[0]:'RAL '+r[0])+' · '+r[1];
-  box.appendChild(swatchRow(pr.kind==='glass'?'Colore profili':'Colore struttura',RAL,S.ral,'ral',ralName));
+  if(pr.colors)box.appendChild(swatchRow('Colore armatura',pr.colors,curCol(pr),'vcol',r=>r[1]));
+  else box.appendChild(swatchRow(pr.kind==='glass'?'Colore profili':'Colore struttura',RAL,S.ral,'ral',ralName));
+  if(['arm','drop','hood'].includes(pr.kind))box.appendChild(swatchRow('Tessuto',TFAB,S.tfab,'tfab',r=>r[1]+' (indicativo, acrilico)'));
   const hasFab=['armonia','slope','sky','fly'].includes(pr.kind)||p.zipF||p.zipL||p.zipR;
   if(hasFab)box.appendChild(swatchRow(pr.kind==='bio'?'Tessuto chiusure ZIP':'Tessuto telo',FAB,S.fab,'fab',r=>r[1]+' ('+r[0]+')'));
   if(pr.kind==='glass'){const w=document.createElement('div');w.className='row';
@@ -632,7 +872,8 @@ $('lens').oninput=e=>{S.lens=+e.target.value;lensUI();solve();saveView();};
 [['az','°'],['el','°'],['exp','%'],['sh','%']].forEach(([k,u])=>{const el=$(k),out=$(k+'Out');const set=()=>{S[k]=+el.value;out.textContent=el.value+u;};set();
   el.oninput=()=>{set();updateLight();saveView();};});
 $('wallSh').onchange=e=>{S.wallSh=e.target.checked;rebuild();};
-$('resetPts').onclick=()=>{if(!S.photo)return;S.pts[mode()]=defaultPts(mode(),S.photo.w,S.photo.h);drawHandles();solve();saveView();};
+document.querySelectorAll('#method button').forEach(b=>b.onclick=()=>{S.method=b.dataset.m;howto();drawHandles();solve();saveView();});
+$('resetPts').onclick=()=>{if(!S.photo)return;if(isLines())S.lines=defaultLines(S.photo.w,S.photo.h);else S.pts[mode()]=defaultPts(mode(),S.photo.w,S.photo.h);drawHandles();solve();saveView();};
 $('togglePts').onclick=e=>{S.showPts=!S.showPts;e.currentTarget.setAttribute('aria-pressed',S.showPts);e.currentTarget.textContent=S.showPts?'Punti visibili':'Punti nascosti';drawHandles();};
 
 /* ---------- caricamento foto ---------- */
@@ -644,11 +885,11 @@ function exifFocal35(buf){try{const v=new DataView(buf);if(v.getUint16(0)!==0xFF
     if((m&0xFF00)!==0xFF00)break;o+=2+len;}}catch(e){}return null;}
 /* ---------- viste (frontale, laterale, ...) ---------- */
 S.views=[{name:'Frontale'},{name:'Laterale'}];S.cur=0;
-const VIEWKEYS=['photo','pts','lens','az','el','exp','sh'];
-function saveView(){const v=S.views[S.cur];VIEWKEYS.forEach(k=>v[k]=S[k]);v.pts=S.pts&&{ground:S.pts.ground?.map(p=>p.slice()),wall:S.pts.wall?.map(p=>p.slice())};}
+const VIEWKEYS=['photo','pts','lens','az','el','exp','sh','method','lines'];
+function saveView(){const v=S.views[S.cur];VIEWKEYS.forEach(k=>v[k]=S[k]);v.lines=S.lines&&cloneLines(S.lines);v.pts=S.pts&&{ground:S.pts.ground?.map(p=>p.slice()),wall:S.pts.wall?.map(p=>p.slice())};}
 function syncLightUI(){[['az','°'],['el','°'],['exp','%'],['sh','%']].forEach(([k,u])=>{$(k).value=S[k];$(k+'Out').textContent=S[k]+u;});}
 function loadView(i){saveView();S.cur=i;const v=S.views[i];
-  if(v.photo){VIEWKEYS.forEach(k=>{if(v[k]!==undefined)S[k]=v[k];});S.pts={ground:v.pts.ground.map(p=>p.slice()),wall:v.pts.wall.map(p=>p.slice())};imgEl.src=v.photo.img.src;}
+  if(v.photo){VIEWKEYS.forEach(k=>{if(v[k]!==undefined)S[k]=v[k];});S.pts={ground:v.pts.ground.map(p=>p.slice()),wall:v.pts.wall.map(p=>p.slice())};S.lines=cloneLines(v.lines);imgEl.src=v.photo.img.src;}
   else{S.photo=null;}
   frame.hidden=!S.photo;$('empty').hidden=!!S.photo;$('emptyText').textContent=`Carica la foto per la vista ${v.name.toLowerCase()}`;
   syncLightUI();lensUI();renderViews();layout();onProduct();updateTip();}
@@ -657,7 +898,7 @@ function renderViews(){const b=$('views');
     (S.views.length<4?'<button type="button" data-add="1" title="Aggiungi un\'altra vista">+ Vista</button>':'');
   b.querySelectorAll('button').forEach(x=>x.onclick=()=>{if(x.dataset.add){S.views.push({name:'Vista '+(S.views.length+1)});loadView(S.views.length-1);}else if(+x.dataset.i!==S.cur)loadView(+x.dataset.i);});}
 function setPhoto(img,w,h,opts={}){S.photo={img,w,h,sample:!!opts.sample};imgEl.src=img.src;frame.hidden=false;$('empty').hidden=true;
-  S.pts={ground:opts.ground||defaultPts('ground',w,h),wall:opts.wall||defaultPts('wall',w,h)};
+  S.pts={ground:opts.ground||defaultPts('ground',w,h),wall:opts.wall||defaultPts('wall',w,h)};S.lines=opts.lines||defaultLines(w,h);
   if(opts.lens){S.lens=opts.lens;}lensUI();layout();onProduct();saveView();renderViews();
   $('lensNote').textContent=opts.lensFromExif?`Letto dalla foto: ${opts.lens} mm equivalenti. Cambialo solo se la prospettiva non torna.`:'iPhone: 0,5× = 13 mm, 1× = 26 mm, 2× = 52 mm, 3× = 77 mm.';}
 $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const buf=await f.arrayBuffer();const lens=exifFocal35(buf);
@@ -691,7 +932,8 @@ function sampleScene(){const W=1600,H=1200,c=document.createElement('canvas');c.
   const f=Math.hypot(W,H)*26/43.27,cam=new THREE.PerspectiveCamera(2*Math.atan(H/2/f)*180/Math.PI,W/H,.1,200);cam.position.set(1.4,1.62,9.4);cam.lookAt(.2,1.45,1.6);
   r.setSize(W,H,false);r.render(sc,cam);const url=c.toDataURL('image/jpeg',.9);
   const proj=v=>{const p=new THREE.Vector3(...v).project(cam);return[(p.x+1)/2*W,(1-p.y)/2*H];};
-  const out={url,W,H,ground:[[-2.25,0,0],[2.25,0,0],[2.25,0,4],[-2.25,0,4]].map(proj),wall:[[-2.1,0,0],[2.1,0,0],[2.1,2.4,0],[-2.1,2.4,0]].map(proj)};
+  const out={url,W,H,ground:[[-2.25,0,0],[2.25,0,0],[2.25,0,4],[-2.25,0,4]].map(proj),wall:[[-2.1,0,0],[2.1,0,0],[2.1,2.4,0],[-2.1,2.4,0]].map(proj),
+    lines:{r:[[[-2.1,2.4,0],[2.1,2.4,0]].map(proj),[[-5.3,3.6,0],[5.3,3.6,0]].map(proj)],b:[[[-2.1,0,0],[-2.1,2.4,0]].map(proj),[[2.1,0,0],[2.1,2.4,0]].map(proj)],A:proj([-2.25,0,0]),B:proj([2.25,0,0])}};
   r.dispose();r.forceContextLoss?.();sc.traverse(o=>{o.geometry?.dispose();});return out;}
 
 /* ---------- esporta ---------- */
@@ -726,7 +968,7 @@ $('arBtn').onclick=async()=>{const b=$('arBtn');b.disabled=true;b.textContent='P
 /* ---------- avvio ---------- */
 buildProducts();lensUI();renderViews();
 const smp=sampleScene();const simg=new Image();
-simg.onload=()=>setPhoto(simg,smp.W,smp.H,{sample:true,ground:smp.ground,wall:smp.wall,lens:26});simg.src=smp.url;
+simg.onload=()=>setPhoto(simg,smp.W,smp.H,{sample:true,ground:smp.ground,wall:smp.wall,lines:smp.lines,lens:26});simg.src=smp.url;
 </script>
 
 </body>
