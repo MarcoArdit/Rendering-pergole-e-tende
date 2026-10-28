@@ -1,3 +1,10 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rendering">
 <title>Rendering Pergole</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +25,7 @@
   --bg:#12171B; --panel:#1A2126; --ink:#E5EAED; --muted:#96A2AA; --line:#2C363D; --soft:#222A30;
   --accent:#6EA7D1; --accent-ink:#0D1317; --stage:#0B0F12; --warn:#E39A6B; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);margin:0;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
@@ -81,6 +89,9 @@ select{width:100%;font:500 .95rem var(--f-body);color:var(--ink);background:var(
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+</head>
+<body>
+
 
 <div class="app">
   <header>
@@ -689,3 +700,6 @@ buildProducts();lensUI();
 const smp=sampleScene();const simg=new Image();
 simg.onload=()=>setPhoto(simg,smp.W,smp.H,{sample:true,ground:smp.ground,wall:smp.wall,lens:26});simg.src=smp.url;
 </script>
+
+</body>
+</html>
